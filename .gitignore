@@ -1,0 +1,48 @@
+# Haskell / Cabal
+dist-newstyle/
+cabal.project.local
+cabal.project.local~
+*.hi
+*.o
+*.dyn_hi
+*.dyn_o
+*.prof
+*.hp
+*.tix
+.hpc/
+.ghc.environment.*
+
+# GHCup
+.ghcup/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Environment
+.env
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+*.log
+
+# Secrets — NEVER commit
+*.pem
+*.key

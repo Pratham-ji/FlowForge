@@ -1,0 +1,59 @@
+cabal-version:      3.0
+name:               flowforge-backend
+version:            0.1.0.0
+synopsis:           Typed Workflow & Business Process Platform
+license:            NONE
+author:             Pratham
+maintainer:         pratham@example.com
+build-type:         Simple
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import:           warnings
+    exposed-modules:
+        FlowForge.Domain.Types
+        FlowForge.Domain.Error
+        FlowForge.Domain.Authorization
+        FlowForge.Domain.Validation
+        FlowForge.Domain.Workflow
+        FlowForge.Domain.Transition
+    build-depends:
+        base >= 4.18 && < 5,
+        uuid,
+        text,
+        containers
+    hs-source-dirs:   src
+    default-language: Haskell2010
+
+executable flowforge-backend
+    import:           warnings
+    main-is:          Main.hs
+    build-depends:
+        base >= 4.18 && < 5,
+        flowforge-backend
+    hs-source-dirs:   app
+    default-language: Haskell2010
+
+test-suite flowforge-backend-test
+    import:           warnings
+    default-language: Haskell2010
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Spec.hs
+    other-modules:
+        FlowForge.Domain.AuthorizationSpec
+        FlowForge.Domain.ValidationSpec
+        FlowForge.Domain.WorkflowSpec
+        FlowForge.Domain.TransitionSpec
+    build-depends:
+        base >= 4.18 && < 5,
+        flowforge-backend,
+        hspec,
+        QuickCheck,
+        uuid,
+        text,
+        containers
+    build-tool-depends:
+        hspec-discover:hspec-discover

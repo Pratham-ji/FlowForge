@@ -1,0 +1,9 @@
+-- FlowForge backend Cabal project configuration
+-- This file pins the GHC version and sets project-wide build settings.
+
+packages: .
+
+-- Use GHC 9.6.7 (managed by GHCup)
+-- with-compiler: ghc-9.6.7
+program-default-options
+  gcc-options: -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
