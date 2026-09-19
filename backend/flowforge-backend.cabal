@@ -19,11 +19,26 @@ library
         FlowForge.Domain.Validation
         FlowForge.Domain.Workflow
         FlowForge.Domain.Transition
+        FlowForge.Application.Error
+        FlowForge.Application.Ports
+        FlowForge.Application.UseCases.Workflow
+        FlowForge.Application.UseCases.Instance
+        FlowForge.Infrastructure.Database
+        FlowForge.Infrastructure.Repositories.Workflow
+        FlowForge.Infrastructure.Repositories.Instance
+        FlowForge.Infrastructure.Repositories.Audit
+        FlowForge.Infrastructure.Transaction
     build-depends:
         base >= 4.18 && < 5,
         uuid,
         text,
-        containers
+        containers,
+        postgresql-simple,
+        resource-pool,
+        time,
+        mtl,
+        transformers,
+        bytestring
     hs-source-dirs:   src
     default-language: Haskell2010
 
@@ -47,6 +62,8 @@ test-suite flowforge-backend-test
         FlowForge.Domain.ValidationSpec
         FlowForge.Domain.WorkflowSpec
         FlowForge.Domain.TransitionSpec
+        FlowForge.Application.UseCasesSpec
+        FlowForge.Infrastructure.IntegrationSpec
     build-depends:
         base >= 4.18 && < 5,
         flowforge-backend,
@@ -54,6 +71,12 @@ test-suite flowforge-backend-test
         QuickCheck,
         uuid,
         text,
-        containers
+        containers,
+        postgresql-simple,
+        resource-pool,
+        time,
+        mtl,
+        transformers,
+        bytestring
     build-tool-depends:
         hspec-discover:hspec-discover

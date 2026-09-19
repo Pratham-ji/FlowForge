@@ -34,3 +34,15 @@
 - **Context**: It is ambiguous which state an instance should begin in when created.
 - **Decision**: Add an explicit `initialStateId` to the Workflow definition.
 - **Consequences**: The domain can validate that the initial state exists during workflow creation.
+
+## ADR-008 — Application repository ports
+The Application layer defines purely functional repository interfaces (ports) using the Handle/Record pattern or typeclasses. This ensures the Application can be tested against in-memory fakes.
+
+## ADR-009 — PostgreSQL persistence
+PostgreSQL is chosen as the primary data store. We use `postgresql-simple` instead of an ORM (like Persistent) to maintain strict separation between DB rows and pure Domain types, requiring explicit mapping functions.
+
+## ADR-010 — Optimistic concurrency
+Concurrent transitions on the same instance are managed via Optimistic Concurrency Control using a `version` column. The pure Domain remains unaware of `version`; it is handled strictly at the Application/Persistence boundary.
+
+## ADR-011 — Transactional audit consistency
+Updates to a workflow instance and its resulting audit trail must occur in the same database transaction. The Application uses a transaction port to coordinate this atomicity.
