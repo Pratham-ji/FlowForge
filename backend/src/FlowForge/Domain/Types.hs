@@ -3,6 +3,7 @@
 module FlowForge.Domain.Types
   ( OrganizationId (..)
   , UserId (..)
+  , User (..)
   , WorkflowId (..)
   , WorkflowInstanceId (..)
   , WorkflowStateId (..)
@@ -24,6 +25,7 @@ import Data.Text (Text)
 
 newtype OrganizationId = OrganizationId UUID deriving (Eq, Ord, Show)
 newtype UserId = UserId UUID deriving (Eq, Ord, Show)
+data User = User { uId :: UserId, uOrganizationId :: OrganizationId, uRole :: Role } deriving (Eq, Show)
 newtype WorkflowId = WorkflowId UUID deriving (Eq, Ord, Show)
 newtype WorkflowInstanceId = WorkflowInstanceId UUID deriving (Eq, Ord, Show)
 newtype WorkflowStateId = WorkflowStateId UUID deriving (Eq, Ord, Show)

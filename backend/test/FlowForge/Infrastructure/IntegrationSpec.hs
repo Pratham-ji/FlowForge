@@ -22,7 +22,9 @@ setupDb :: DbPool -> IO ()
 setupDb pool = withResource pool $ \conn -> do
   _ <- execute_ conn "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
   schemaSql <- B.readFile "migrations/001_initial_schema.sql"
+  authSql <- B.readFile "migrations/002_authentication.sql"
   _ <- execute_ conn (Query schemaSql)
+  _ <- execute_ conn (Query authSql)
   return ()
 
 mkId :: Word32 -> UUID
@@ -50,10 +52,13 @@ instId :: WorkflowInstanceId
 instId = WorkflowInstanceId (mkId 500)
 
 insertBaseData :: DbPool -> IO ()
-insertBaseData pool = withResource pool $ \conn -> do
+insertBaseData pool = withResource pool setupFixtures
+
+setupFixtures :: Connection -> IO ()
+setupFixtures conn = do
   _ <- execute conn "INSERT INTO organizations (id) VALUES (?)" (Only (mkId 1))
   _ <- execute conn "INSERT INTO organizations (id) VALUES (?)" (Only (mkId 2))
-  _ <- execute conn "INSERT INTO users (id, organization_id, role) VALUES (?, ?, 'Admin')" (mkId 100, mkId 1)
+  _ <- execute conn "INSERT INTO users (id, organization_id, role, email, password_hash) VALUES (?, ?, 'Admin', 'admin@example.com', '$2b$10$xyz')" (mkId 100, mkId 1)
   return ()
 
 baseWf :: Workflow
@@ -125,7 +130,7 @@ spec = do
 
     it "saves and retrieves a workflow instance" $ \pool -> runSqlM pool $ do
       let wRepo = workflowRepository
-      let iRepo = workflowInstanceRepository
+      let iRepo = instanceRepository
       _ <- saveWorkflow wRepo baseWf
       
       let inst = WorkflowInstance instId wfId org1Id st1 u1Id
@@ -141,7 +146,7 @@ spec = do
 
     it "enforces optimistic concurrency" $ \pool -> runSqlM pool $ do
       let wRepo = workflowRepository
-      let iRepo = workflowInstanceRepository
+      let iRepo = instanceRepository
       _ <- saveWorkflow wRepo baseWf
       
       let inst = WorkflowInstance instId wfId org1Id st1 u1Id
@@ -157,7 +162,7 @@ spec = do
 
     it "rolls back transaction on Left AppError" $ \pool -> runSqlM pool $ do
       let wRepo = workflowRepository
-      let iRepo = workflowInstanceRepository
+      let iRepo = instanceRepository
       let txPort = transactionPort
       
       let activeWf = baseWf { wLifecycle = Active }

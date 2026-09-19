@@ -46,19 +46,19 @@ spec = do
           , wStates = [WorkflowState stateId "Init" False]
           , wTransitions = []
           }
-    let uId = UserId nil
+    let userIdForTest = UserId nil
     let instId = WorkflowInstanceId nil
 
     it "creates an instance from an Active workflow" $ do
-      let instRes = createWorkflowInstance baseWorkflow instId uId
+      let instRes = createWorkflowInstance baseWorkflow instId userIdForTest
       fmap wiId instRes `shouldBe` Right instId
       fmap wiCurrentStateId instRes `shouldBe` Right stateId
-      fmap wiCreatedBy instRes `shouldBe` Right uId
+      fmap wiCreatedBy instRes `shouldBe` Right userIdForTest
 
     it "fails to create instance from Draft workflow" $ do
       let draftW = baseWorkflow { wLifecycle = Draft }
-      createWorkflowInstance draftW instId uId `shouldBe` Left (WorkflowNotActive Draft)
+      createWorkflowInstance draftW instId userIdForTest `shouldBe` Left (WorkflowNotActive Draft)
 
     it "fails to create instance from Archived workflow" $ do
       let archW = baseWorkflow { wLifecycle = Archived }
-      createWorkflowInstance archW instId uId `shouldBe` Left (WorkflowNotActive Archived)
+      createWorkflowInstance archW instId userIdForTest `shouldBe` Left (WorkflowNotActive Archived)

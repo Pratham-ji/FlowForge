@@ -1,4 +1,4 @@
-module FlowForge.Application.UseCases.Workflow 
+module FlowForge.Application.UseCases.Workflow
   ( createWorkflow
   , activateWorkflow
   , archiveWorkflow
@@ -16,10 +16,10 @@ import qualified FlowForge.Domain.Error
 
 -- Helper to check permissions
 checkPerm :: Monad m => Role -> Permission -> UserId -> ExceptT AppError m ()
-checkPerm role perm uId = 
+checkPerm role perm userId =
   if hasPermission role perm
     then return ()
-    else throwE (Unauthorized uId)
+    else throwE (Unauthorized userId)
   where
     throwE = ExceptT . return . Left
 
@@ -28,54 +28,54 @@ runDomain :: Monad m => Either FlowForge.Domain.Error.DomainError a -> ExceptT A
 runDomain (Left err) = ExceptT . return . Left $ DomainFailure err
 runDomain (Right val) = return val
 
-createWorkflow 
-  :: Monad m 
-  => WorkflowRepository m 
-  -> UserId 
-  -> Role 
-  -> Workflow 
+createWorkflow
+  :: Monad m
+  => WorkflowRepository m
+  -> UserId
+  -> Role
+  -> Workflow
   -> m (Either AppError ())
-createWorkflow repo uId role w = runExceptT $ do
-  checkPerm role CreateWorkflow uId
+createWorkflow repo userId role w = runExceptT $ do
+  checkPerm role CreateWorkflow userId
   runDomain $ validateWorkflow w
   ExceptT $ saveWorkflow repo w
 
-activateWorkflow 
-  :: Monad m 
-  => WorkflowRepository m 
-  -> OrganizationId 
-  -> UserId 
-  -> Role 
-  -> WorkflowId 
+activateWorkflow
+  :: Monad m
+  => WorkflowRepository m
+  -> OrganizationId
+  -> UserId
+  -> Role
+  -> WorkflowId
   -> m (Either AppError ())
-activateWorkflow repo orgId uId role wfId = runExceptT $ do
-  checkPerm role UpdateWorkflow uId
+activateWorkflow repo orgId userId role wfId = runExceptT $ do
+  checkPerm role UpdateWorkflow userId
   w <- ExceptT $ getWorkflow repo orgId wfId
   w' <- runDomain $ changeLifecycle w Active
   ExceptT $ saveWorkflow repo w'
 
-archiveWorkflow 
-  :: Monad m 
-  => WorkflowRepository m 
-  -> OrganizationId 
-  -> UserId 
-  -> Role 
-  -> WorkflowId 
+archiveWorkflow
+  :: Monad m
+  => WorkflowRepository m
+  -> OrganizationId
+  -> UserId
+  -> Role
+  -> WorkflowId
   -> m (Either AppError ())
-archiveWorkflow repo orgId uId role wfId = runExceptT $ do
-  checkPerm role UpdateWorkflow uId
+archiveWorkflow repo orgId userId role wfId = runExceptT $ do
+  checkPerm role UpdateWorkflow userId
   w <- ExceptT $ getWorkflow repo orgId wfId
   w' <- runDomain $ changeLifecycle w Archived
   ExceptT $ saveWorkflow repo w'
 
-getWorkflowUC 
-  :: Monad m 
-  => WorkflowRepository m 
-  -> OrganizationId 
-  -> UserId 
-  -> Role 
-  -> WorkflowId 
+getWorkflowUC
+  :: Monad m
+  => WorkflowRepository m
+  -> OrganizationId
+  -> UserId
+  -> Role
+  -> WorkflowId
   -> m (Either AppError Workflow)
-getWorkflowUC repo orgId uId role wfId = runExceptT $ do
-  checkPerm role ReadWorkflow uId
+getWorkflowUC repo orgId userId role wfId = runExceptT $ do
+  checkPerm role ReadWorkflow userId
   ExceptT $ getWorkflow repo orgId wfId

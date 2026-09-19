@@ -11,7 +11,7 @@ createWorkflowInstance
   -> WorkflowInstanceId
   -> UserId
   -> Either DomainError WorkflowInstance
-createWorkflowInstance w instId uId = do
+createWorkflowInstance w instId actorId = do
   -- Must be active
   if wLifecycle w /= Active
     then Left $ WorkflowNotActive (wLifecycle w)
@@ -23,7 +23,7 @@ createWorkflowInstance w instId uId = do
     , wiWorkflowId = wId w
     , wiOrgId = wOrgId w
     , wiCurrentStateId = wInitialStateId w
-    , wiCreatedBy = uId
+    , wiCreatedBy = actorId
     }
 
 changeLifecycle

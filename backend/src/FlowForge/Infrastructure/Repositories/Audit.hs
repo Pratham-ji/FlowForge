@@ -48,7 +48,7 @@ auditRepository = AuditRepository
         Left err -> return $ Left $ PersistenceFailure (show (err :: SomeException))
         Right _ -> return $ Right ()
 
-  , getAuditHistory = \orgId instId -> do
+  , getAuditEvents = \orgId instId -> do
       conn <- ask
       res <- liftIO $ try $ query conn
         "SELECT actor_id, previous_state_id, action, resulting_state_id \

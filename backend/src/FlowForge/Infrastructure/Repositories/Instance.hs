@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module FlowForge.Infrastructure.Repositories.Instance
-  ( workflowInstanceRepository
+  ( instanceRepository
   ) where
 
 import FlowForge.Domain.Types
@@ -31,8 +31,8 @@ mapUserId (UserId u) = u
 mapStateId :: WorkflowStateId -> UUID
 mapStateId (WorkflowStateId u) = u
 
-workflowInstanceRepository :: WorkflowInstanceRepository SqlM
-workflowInstanceRepository = WorkflowInstanceRepository
+instanceRepository :: InstanceRepository SqlM
+instanceRepository = InstanceRepository
   { saveWorkflowInstance = \inst version -> do
       conn <- ask
       if version == 1 then do

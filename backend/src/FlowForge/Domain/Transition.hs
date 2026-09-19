@@ -12,7 +12,7 @@ transition
   -> Role
   -> WorkflowAction
   -> Either DomainError (WorkflowInstance, AuditEvent)
-transition w inst uId role action = do
+transition w inst actorId role action = do
   -- 1. Verify instance belongs to workflow
   if wiWorkflowId inst /= wId w
     then Left $ WorkflowInstanceMismatch (wiWorkflowId inst) (wId w)
@@ -52,7 +52,7 @@ transition w inst uId role action = do
           audit = AuditEvent
             { aeOrgId = wiOrgId inst
             , aeInstanceId = wiId inst
-            , aeActorId = uId
+            , aeActorId = actorId
             , aePreviousStateId = wiCurrentStateId inst
             , aeAction = action
             , aeResultingStateId = wtTargetStateId edge

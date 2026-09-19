@@ -28,6 +28,20 @@ library
         FlowForge.Infrastructure.Repositories.Instance
         FlowForge.Infrastructure.Repositories.Audit
         FlowForge.Infrastructure.Transaction
+        FlowForge.Config
+        FlowForge.Infrastructure.Auth.Password
+        FlowForge.Infrastructure.Repositories.User
+        FlowForge.Application.UseCases.Auth
+        FlowForge.Api.Types
+        FlowForge.Api.Requests
+        FlowForge.Api.Responses
+        FlowForge.Api.Errors
+        FlowForge.Api.Env
+        FlowForge.Api.Auth
+        FlowForge.Api.Routes
+        FlowForge.Api.Handlers
+        FlowForge.Api.Server
+        FlowForge.Api.OpenAPI
     build-depends:
         base >= 4.18 && < 5,
         uuid,
@@ -38,7 +52,24 @@ library
         time,
         mtl,
         transformers,
-        bytestring
+        bytestring,
+        servant-server,
+        servant,
+        case-insensitive,
+        servant-auth,
+        servant-auth-server,
+        servant-openapi3,
+        openapi3,
+        aeson,
+        wai,
+        wai-extra,
+        warp,
+        wai-cors,
+        password,
+        password-instances,
+        http-types,
+        lens,
+        insert-ordered-containers
     hs-source-dirs:   src
     default-language: Haskell2010
 
@@ -64,6 +95,7 @@ test-suite flowforge-backend-test
         FlowForge.Domain.TransitionSpec
         FlowForge.Application.UseCasesSpec
         FlowForge.Infrastructure.IntegrationSpec
+        FlowForge.Api.IntegrationSpec
     build-depends:
         base >= 4.18 && < 5,
         flowforge-backend,
@@ -77,6 +109,25 @@ test-suite flowforge-backend-test
         time,
         mtl,
         transformers,
-        bytestring
+        bytestring,
+        servant-server,
+        servant,
+        case-insensitive,
+        servant-auth,
+        servant-auth-server,
+        servant-openapi3,
+        openapi3,
+        aeson,
+        wai,
+        wai-extra,
+        warp,
+        wai-cors,
+        password,
+        password-instances,
+        http-types,
+        lens,
+        insert-ordered-containers,
+        hspec-wai,
+        hspec-wai-json
     build-tool-depends:
         hspec-discover:hspec-discover

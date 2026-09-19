@@ -7,6 +7,8 @@ data AppError
   = DomainFailure DomainError
   | WorkflowNotFound WorkflowId
   | WorkflowInstanceNotFound WorkflowInstanceId
+  | UserNotFound String
+  | InvalidCredentials
   | Unauthorized UserId
   | TenantMismatch OrganizationId OrganizationId
   | ConcurrencyConflict WorkflowInstanceId

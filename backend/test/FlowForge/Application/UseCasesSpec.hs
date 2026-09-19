@@ -26,7 +26,7 @@ spec = do
 
       let orgId = OrganizationId (mkId 1)
           wfId_ = WorkflowId (mkId 1)
-          uId = UserId (mkId 1)
+          userIdVal = UserId (mkId 1)
           stateId = WorkflowStateId (mkId 1)
           instId = WorkflowInstanceId (mkId 1)
           
@@ -42,7 +42,7 @@ spec = do
                   Just w -> if wOrgId w == o then return (Right w) else return (Left (TenantMismatch o (wOrgId w)))
                   Nothing -> return (Left (WorkflowNotFound wfId))
             }
-          iRepo = WorkflowInstanceRepository
+          iRepo = InstanceRepository
             { saveWorkflowInstance = \inst v -> do modifyIORef iDb (Map.insert (wiId inst) (inst, v)); return (Right ())
             , getWorkflowInstance = \o iId -> do
                 db <- readIORef iDb
@@ -52,13 +52,13 @@ spec = do
             }
           aRepo = AuditRepository
             { appendAuditEvent = \e -> do modifyIORef aDb (e:); return (Right ())
-            , getAuditHistory = \_ _ -> return (Right [])
+            , getAuditEvents = \_ _ -> return (Right [])
             }
           txPort = TransactionPort { withTransaction = id }
 
       -- Act
-      _ <- executeWorkflowTransitionUC txPort wRepo iRepo aRepo orgId uId Member instId (WorkflowAction "Submit")
-      res <- createWorkflowInstanceUC wRepo iRepo orgId uId Member wfId_ instId
+      _ <- executeWorkflowTransitionUC txPort wRepo iRepo aRepo orgId userIdVal Member instId (WorkflowAction "Submit")
+      res <- createWorkflowInstanceUC wRepo iRepo orgId userIdVal Member wfId_ instId
 
       -- Assert
       case res of

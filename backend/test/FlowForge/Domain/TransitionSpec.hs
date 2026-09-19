@@ -17,8 +17,8 @@ mkStateId w = WorkflowStateId (fromWords 0 0 0 w)
 mkTransId :: Word32 -> TransitionId
 mkTransId w = TransitionId (fromWords 0 0 0 w)
 
-uId :: UserId
-uId = UserId (fromWords 0 0 0 99)
+userIdVal :: UserId
+userIdVal = UserId (fromWords 0 0 0 99)
 
 orgId :: OrganizationId
 orgId = OrganizationId (fromWords 0 0 0 1)
@@ -54,14 +54,14 @@ baseInst = WorkflowInstance
   , wiWorkflowId = wId_
   , wiOrgId = orgId
   , wiCurrentStateId = mkStateId 1
-  , wiCreatedBy = uId
+  , wiCreatedBy = userIdVal
   }
 
 spec :: Spec
 spec = do
   describe "Transitions" $ do
     it "succeeds on valid transition" $ do
-      let res = transition validWorkflow baseInst uId Member (WorkflowAction "Submit")
+      let res = transition validWorkflow baseInst userIdVal Member (WorkflowAction "Submit")
       fmap (wiCurrentStateId . fst) res `shouldBe` Right (mkStateId 2)
       fmap (aePreviousStateId . snd) res `shouldBe` Right (mkStateId 1)
       fmap (aeResultingStateId . snd) res `shouldBe` Right (mkStateId 2)
@@ -69,34 +69,34 @@ spec = do
       fmap (wiId . fst) res `shouldBe` Right (wiId baseInst)
 
     it "rejects invalid transition" $ do
-      let res = transition validWorkflow baseInst uId Member (WorkflowAction "Approve")
+      let res = transition validWorkflow baseInst userIdVal Member (WorkflowAction "Approve")
       res `shouldBe` Left (InvalidTransition (mkStateId 1) (WorkflowAction "Approve"))
 
     it "rejects transition if wrong permission" $ do
       -- Needs TransitionInstance permission, let's say Viewer doesn't have it
-      let res = transition validWorkflow baseInst uId Viewer (WorkflowAction "Submit")
+      let res = transition validWorkflow baseInst userIdVal Viewer (WorkflowAction "Submit")
       res `shouldBe` Left (PermissionDenied (WorkflowAction "Submit") TransitionInstance)
 
     it "rejects transition from terminal state" $ do
       let inst = baseInst { wiCurrentStateId = mkStateId 3 }
-      let res = transition validWorkflow inst uId Member (WorkflowAction "Submit")
+      let res = transition validWorkflow inst userIdVal Member (WorkflowAction "Submit")
       res `shouldBe` Left (WorkflowAlreadyCompleted (mkStateId 3))
 
     it "rejects if workflow is not active" $ do
       let badW = validWorkflow { wLifecycle = Draft }
-      let res = transition badW baseInst uId Member (WorkflowAction "Submit")
+      let res = transition badW baseInst userIdVal Member (WorkflowAction "Submit")
       res `shouldBe` Left (WorkflowNotActive Draft)
 
     it "rejects if OrganizationMismatch" $ do
       let badOrg = OrganizationId (fromWords 0 0 0 999)
       let inst = baseInst { wiOrgId = badOrg }
-      let res = transition validWorkflow inst uId Member (WorkflowAction "Submit")
+      let res = transition validWorkflow inst userIdVal Member (WorkflowAction "Submit")
       res `shouldBe` Left (OrganizationMismatch badOrg orgId)
 
     it "rejects if WorkflowInstanceMismatch" $ do
       let badWId = WorkflowId (fromWords 0 0 0 999)
       let inst = baseInst { wiWorkflowId = badWId }
-      let res = transition validWorkflow inst uId Member (WorkflowAction "Submit")
+      let res = transition validWorkflow inst userIdVal Member (WorkflowAction "Submit")
       res `shouldBe` Left (WorkflowInstanceMismatch badWId wId_)
 
   describe "Properties" $ do
@@ -104,7 +104,7 @@ spec = do
       forAll genAction $ \action -> do
         let edges = filter (\t -> wtSourceStateId t == wiCurrentStateId baseInst && wtAction t == action) (wTransitions validWorkflow)
         if null edges
-          then case transition validWorkflow baseInst uId Member action of
+          then case transition validWorkflow baseInst userIdVal Member action of
                  Left _ -> True
                  Right _ -> False
           else True -- ignore matches for this property
@@ -112,7 +112,7 @@ spec = do
     it "transitions to target state when valid action and permission exist" $ property $
       forAll (elements (wTransitions validWorkflow)) $ \edge -> do
         let inst = baseInst { wiCurrentStateId = wtSourceStateId edge }
-        case transition validWorkflow inst uId Admin (wtAction edge) of
+        case transition validWorkflow inst userIdVal Admin (wtAction edge) of
           Right (newInst, _) -> wiCurrentStateId newInst == wtTargetStateId edge
           Left _ -> False
 
