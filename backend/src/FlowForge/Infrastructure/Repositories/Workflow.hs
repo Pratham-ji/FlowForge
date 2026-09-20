@@ -10,6 +10,7 @@ import FlowForge.Application.Ports hiding (withTransaction)
 import FlowForge.Application.Error
 import FlowForge.Infrastructure.Database
 import Database.PostgreSQL.Simple
+import Database.PostgreSQL.Simple.Types (In(In))
 import Data.UUID (UUID)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -126,27 +127,36 @@ workflowRepository = WorkflowRepository
       res <- liftIO $ try $ do
         ws <- query conn
           "SELECT id, name, lifecycle, initial_state_id FROM workflows WHERE organization_id = ?"
-          (Only (mapOrgId orgId))
+          (Only (mapOrgId orgId)) :: IO [(UUID, Text, Text, UUID)]
 
-        domainWfs <- mapM (\(wIdU, n, lc, initSt) -> do
-            let wfId = WorkflowId wIdU
-            states <- query conn "SELECT id, name, is_terminal FROM workflow_states WHERE workflow_id = ?" (Only wIdU)
-            trans <- query conn "SELECT id, source_state_id, target_state_id, action, required_permission FROM workflow_transitions WHERE workflow_id = ?" (Only wIdU)
+        if null ws
+          then return (Right [])
+          else do
+            let wfIds = map (\(wIdU, _, _, _) -> wIdU) ws
+            
+            states <- query conn
+              "SELECT id, workflow_id, name, is_terminal FROM workflow_states WHERE workflow_id IN ? AND workflow_id IN (SELECT id FROM workflows WHERE organization_id = ?)"
+              (In wfIds, mapOrgId orgId) :: IO [(UUID, UUID, Text, Bool)]
+              
+            trans <- query conn
+              "SELECT id, workflow_id, source_state_id, target_state_id, action, required_permission FROM workflow_transitions WHERE workflow_id IN ? AND workflow_id IN (SELECT id FROM workflows WHERE organization_id = ?)"
+              (In wfIds, mapOrgId orgId) :: IO [(UUID, UUID, UUID, UUID, Text, Text)]
 
-            let domainStates = map (\(u, nm, term) -> WorkflowState (WorkflowStateId u) nm term) states
-            let domainTrans = map (\(u, src, tgt, act, perm) -> WorkflowTransition (TransitionId u) (WorkflowStateId src) (WorkflowStateId tgt) (WorkflowAction act) (textToPerm perm)) trans
-
-            return $ Workflow
-              { wId = wfId
-              , wOrgId = orgId
-              , wName = n
-              , wLifecycle = textToLc lc
-              , wInitialStateId = WorkflowStateId initSt
-              , wStates = domainStates
-              , wTransitions = domainTrans
-              }
-          ) ws
-        return (Right domainWfs)
+            let domainWfs = map (\(wIdU, n, lc, initSt) -> 
+                  let 
+                    wfStates = [ WorkflowState (WorkflowStateId u) nm term | (u, wid, nm, term) <- states, wid == wIdU ]
+                    wfTrans = [ WorkflowTransition (TransitionId u) (WorkflowStateId src) (WorkflowStateId tgt) (WorkflowAction act) (textToPerm perm) | (u, wid, src, tgt, act, perm) <- trans, wid == wIdU ]
+                  in Workflow
+                    { wId = WorkflowId wIdU
+                    , wOrgId = orgId
+                    , wName = n
+                    , wLifecycle = textToLc lc
+                    , wInitialStateId = WorkflowStateId initSt
+                    , wStates = wfStates
+                    , wTransitions = wfTrans
+                    }
+                  ) ws
+            return (Right domainWfs)
 
       case res of
         Left err -> return $ Left $ PersistenceFailure (show (err :: SomeException))

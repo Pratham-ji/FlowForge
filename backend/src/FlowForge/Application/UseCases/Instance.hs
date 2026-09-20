@@ -56,22 +56,23 @@ executeWorkflowTransitionUC
   -> Role
   -> WorkflowInstanceId
   -> WorkflowAction
+  -> Int
   -> m (Either AppError ())
-executeWorkflowTransitionUC txPort wRepo iRepo aRepo orgId userId role instId action = runExceptT $ do
+executeWorkflowTransitionUC txPort wRepo iRepo aRepo orgId userId role instId action expectedVersion = runExceptT $ do
   -- Authorize overall read access (Transition function also checks specific edge permissions)
   checkPerm role TransitionInstance userId
 
-  -- We wrap the entire process in a transaction
-  -- withExceptT trick isn't easily doable across the transaction boundary without running ExceptT inside,
-  -- but our Ports are returning Either AppError directly.
   ExceptT $ withTransaction txPort $ runExceptT $ do
     (inst, version) <- ExceptT $ getWorkflowInstance iRepo orgId instId
-    w <- ExceptT $ getWorkflow wRepo orgId (wiWorkflowId inst)
+    if version /= expectedVersion
+      then ExceptT $ return $ Left $ ConcurrencyConflict instId
+      else do
+        w <- ExceptT $ getWorkflow wRepo orgId (wiWorkflowId inst)
 
-    (newInst, audit) <- runDomain $ transition w inst userId role action
+        (newInst, audit) <- runDomain $ transition w inst userId role action
 
-    ExceptT $ saveWorkflowInstance iRepo newInst (version + 1)
-    ExceptT $ appendAuditEvent aRepo audit
+        ExceptT $ saveWorkflowInstance iRepo newInst (expectedVersion + 1)
+        ExceptT $ appendAuditEvent aRepo audit
 
 getWorkflowInstanceUC
   :: Monad m

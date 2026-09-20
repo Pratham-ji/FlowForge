@@ -63,7 +63,7 @@ spec = do
           txPort = TransactionPort { withTransaction = id }
 
       -- Act
-      _ <- executeWorkflowTransitionUC txPort wRepo iRepo aRepo orgId userIdVal Member instId (WorkflowAction "Submit")
+      _ <- executeWorkflowTransitionUC txPort wRepo iRepo aRepo orgId userIdVal Member instId (WorkflowAction "Submit") 1
       res <- createWorkflowInstanceUC wRepo iRepo orgId userIdVal Member wfId_ instId
 
       -- Assert

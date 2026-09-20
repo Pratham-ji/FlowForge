@@ -134,7 +134,7 @@ describe('Instance Features', () => {
       await user.click(executeBtn);
 
       await waitFor(() => {
-        expect(api.executeTransition).toHaveBeenCalledWith('inst1', { action: 'approve' });
+        expect(api.executeTransition).toHaveBeenCalledWith('inst1', { action: 'approve', expectedVersion: 1 });
         // After transition, state should be Approved and no actions available
         expect(screen.getByText('Approved')).toBeInTheDocument();
         expect(screen.getByText('This instance has reached a terminal state.')).toBeInTheDocument();

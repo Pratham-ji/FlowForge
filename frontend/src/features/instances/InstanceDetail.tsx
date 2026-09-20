@@ -68,7 +68,7 @@ export function InstanceDetail() {
     setIsTransitioning(action);
 
     try {
-      const updatedInstance = await api.executeTransition(instanceId, { action });
+      const updatedInstance = await api.executeTransition(instanceId, { action, expectedVersion: instance.version });
       setInstance(updatedInstance);
     } catch (err) {
       if (err instanceof AppError) {

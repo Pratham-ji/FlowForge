@@ -63,8 +63,8 @@ getApps = do
   key <- generateKey
   let jwtSettings = defaultJWTSettings key
   let testConfig = AppConfig "" 8080 Development Nothing
-  let appNormal = appWith testConfig pool jwtSettings auditRepository
-  let appFailing = appWith testConfig pool jwtSettings failingAuditRepo
+  let appNormal = appWith pool jwtSettings auditRepository
+  let appFailing = appWith pool jwtSettings failingAuditRepo
   return (appNormal, appFailing, pool, jwtSettings)
 
 authHeader :: String -> String -> WaiSession st [Header]
@@ -250,13 +250,54 @@ spec = do
         instDto <- liftIO $ requireJust "Expected WorkflowInstanceDTO" (decode (simpleBody res2))
 
         let transPath = B.append "/api/v1/instances/" (B.append (fromString $ show $ respInstId instDto) "/transition")
-        res3 <- request "POST" transPath ((mk "Content-Type", "application/json") : headersA) (encode $ object ["action" .= ("Approve"::String)])
+        res3 <- request "POST" transPath ((mk "Content-Type", "application/json") : headersA) (encode $ object ["action" .= ("Approve"::String), "expectedVersion" .= (1::Int)])
         liftIO $ statusCode (simpleStatus res3) `shouldBe` 200
 
         let auditPath = B.append "/api/v1/instances/" (B.append (fromString $ show $ respInstId instDto) "/audit")
         res4 <- request "GET" auditPath headersA ""
         liftIO $ statusCode (simpleStatus res4) `shouldBe` 200
         auditDtos <- liftIO $ requireJust "Expected [AuditEventDTO]" (decode (simpleBody res4) :: Maybe [AuditEventDTO])
+        liftIO $ length auditDtos `shouldBe` 1
+
+
+      it "enforces optimistic concurrency (stale client -> 409)" $ do
+        headersA <- authHeader "admin@example.com" "password"
+        let wfReq = object [
+              "name" .= ("Concurrency Wf"::String),
+              "initialStateId" .= mkId 50,
+              "states" .= [
+                object ["id" .= mkId 50, "name" .= ("S1"::String), "isTerminal" .= False],
+                object ["id" .= mkId 51, "name" .= ("S2"::String), "isTerminal" .= False],
+                object ["id" .= mkId 52, "name" .= ("S3"::String), "isTerminal" .= True]
+              ],
+              "transitions" .= [
+                object ["id" .= mkId 53, "sourceStateId" .= mkId 50, "targetStateId" .= mkId 51, "action" .= ("Approve1"::String), "requiredPermission" .= ("TransitionInstance"::String)],
+                object ["id" .= mkId 54, "sourceStateId" .= mkId 50, "targetStateId" .= mkId 52, "action" .= ("Approve2"::String), "requiredPermission" .= ("TransitionInstance"::String)]
+              ]
+              ]
+        res <- request "POST" "/api/v1/workflows" ((mk "Content-Type", "application/json") : headersA) (encode wfReq)
+        wfDto <- liftIO $ requireJust "Expected WorkflowDTO" (decode (simpleBody res))
+
+        let actPath = B.append "/api/v1/workflows/" (B.append (fromString $ show $ respWfId wfDto) "/activate")
+        _ <- request "POST" actPath headersA ""
+
+        let instPath = B.append "/api/v1/workflows/" (B.append (fromString $ show $ respWfId wfDto) "/instances")
+        res2 <- request "POST" instPath headersA ""
+        instDto <- liftIO $ requireJust "Expected WorkflowInstanceDTO" (decode (simpleBody res2))
+
+        let transPath = B.append "/api/v1/instances/" (B.append (fromString $ show $ respInstId instDto) "/transition")
+        -- First valid transition, expectedVersion = 1
+        res3 <- request "POST" transPath ((mk "Content-Type", "application/json") : headersA) (encode $ object ["action" .= ("Approve1"::String), "expectedVersion" .= (1::Int)])
+        liftIO $ statusCode (simpleStatus res3) `shouldBe` 200
+
+        -- Second transition with STALE client expectedVersion = 1
+        res4 <- request "POST" transPath ((mk "Content-Type", "application/json") : headersA) (encode $ object ["action" .= ("Approve2"::String), "expectedVersion" .= (1::Int)])
+        liftIO $ statusCode (simpleStatus res4) `shouldBe` 409
+
+        -- Verify audit count is 1
+        let auditPath = B.append "/api/v1/instances/" (B.append (fromString $ show $ respInstId instDto) "/audit")
+        res5 <- request "GET" auditPath headersA ""
+        auditDtos <- liftIO $ requireJust "Expected [AuditEventDTO]" (decode (simpleBody res5) :: Maybe [AuditEventDTO])
         liftIO $ length auditDtos `shouldBe` 1
 
     describe "Error Contract" $ do
@@ -299,7 +340,7 @@ spec = do
         res2 <- request "POST" (B.append "/api/v1/workflows/" (B.append (fromString $ show $ respWfId wfDto) "/instances")) headersA ""
         instDto <- liftIO $ requireJust "Expected WorkflowInstanceDTO" (decode (simpleBody res2))
         -- 4. Execute transition on FAILING app
-        res3 <- request "POST" (B.append "/api/v1/instances/" (B.append (fromString $ show $ respInstId instDto) "/transition")) ((mk "Content-Type", "application/json") : headersA) (encode $ object ["action" .= ("Approve"::String)])
+        res3 <- request "POST" (B.append "/api/v1/instances/" (B.append (fromString $ show $ respInstId instDto) "/transition")) ((mk "Content-Type", "application/json") : headersA) (encode $ object ["action" .= ("Approve"::String), "expectedVersion" .= (1::Int)])
         -- 5. Should fail 500
         liftIO $ statusCode (simpleStatus res3) `shouldBe` 500
         -- 6. Verify via normal app that state is unchanged

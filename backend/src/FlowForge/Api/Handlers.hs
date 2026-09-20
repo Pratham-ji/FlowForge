@@ -186,7 +186,7 @@ transInst :: AuthResult AuthenticatedUser -> UUID -> ExecuteTransitionRequest ->
 transInst authResult iId req = do
   authUser <- liftEither (requireAuth authResult)
   env <- ask
-  _ <- runUc "executeWorkflowTransitionUC" $ executeWorkflowTransitionUC transactionPort workflowRepository instanceRepository (aeAuditRepo env) (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowInstanceId iId) (WorkflowAction $ reqAction req)
+  _ <- runUc "executeWorkflowTransitionUC" $ executeWorkflowTransitionUC transactionPort workflowRepository instanceRepository (aeAuditRepo env) (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowInstanceId iId) (WorkflowAction $ reqAction req) (reqExpectedVersion req)
   inst <- runUc "getWorkflowInstanceUC" $ getWorkflowInstanceUC instanceRepository (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowInstanceId iId)
   return (fromDomainInstance inst 0)
 

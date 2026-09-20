@@ -25,4 +25,4 @@ main = do
   let jwtSettings = defaultJWTSettings key
 
   putStrLn $ "Starting FlowForge server on port " ++ show (acServerPort config)
-  run (acServerPort config) (appWith config pool jwtSettings auditRepository)
+  run (acServerPort config) (appWith pool jwtSettings auditRepository)

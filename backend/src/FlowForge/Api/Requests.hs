@@ -12,7 +12,8 @@ module FlowForge.Api.Requests
 
 import GHC.Generics
 import Data.Aeson
-import Data.OpenApi (ToSchema)
+import Data.OpenApi (ToSchema(..), genericDeclareNamedSchema, defaultSchemaOptions)
+import qualified Data.OpenApi as OA
 import Data.UUID (UUID)
 import Data.Text (Text)
 
@@ -83,14 +84,22 @@ instance ToSchema CreateWorkflowRequest
 
 data ExecuteTransitionRequest = ExecuteTransitionRequest
   { reqAction :: Text
+  , reqExpectedVersion :: Int
   } deriving (Show, Generic)
+
+renameExecuteFields :: String -> String
+renameExecuteFields "reqAction" = "action"
+renameExecuteFields "reqExpectedVersion" = "expectedVersion"
+renameExecuteFields other = other
+
 instance FromJSON ExecuteTransitionRequest where
-  parseJSON = genericParseJSON defaultOptions { fieldLabelModifier = renameAction }
-    where renameAction "reqAction" = "action"; renameAction other = other
-instance ToSchema ExecuteTransitionRequest
+  parseJSON = genericParseJSON defaultOptions { fieldLabelModifier = renameExecuteFields }
+
 instance ToJSON ExecuteTransitionRequest where
-  toJSON = genericToJSON defaultOptions { fieldLabelModifier = renameAction }
-    where renameAction "reqAction" = "action"; renameAction other = other
+  toJSON = genericToJSON defaultOptions { fieldLabelModifier = renameExecuteFields }
+
+instance ToSchema ExecuteTransitionRequest where
+  declareNamedSchema = genericDeclareNamedSchema defaultSchemaOptions { OA.fieldLabelModifier = renameExecuteFields }
 
 toDomainTransitions :: [TransitionDefinitionDTO] -> Either String [WorkflowTransition]
 toDomainTransitions dtos = mapM convert dtos

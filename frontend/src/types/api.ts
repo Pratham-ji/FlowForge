@@ -71,6 +71,7 @@ export interface CreateWorkflowRequest {
 
 export interface ExecuteTransitionRequest {
   action: string;
+  expectedVersion: number;
 }
 
 // --- Error Contract ---
