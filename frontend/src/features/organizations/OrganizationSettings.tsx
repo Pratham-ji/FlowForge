@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import * as api from '../../api/client';
 import { AppError } from '../../api/errors';
@@ -15,15 +15,7 @@ export function OrganizationSettings() {
   const [addError, setAddError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
-  useEffect(() => {
-    if (currentOrg && currentRole === 'Admin') {
-      loadMembers();
-    } else {
-      setLoading(false);
-    }
-  }, [currentOrg, currentRole]);
-
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -38,7 +30,15 @@ export function OrganizationSettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentOrg]);
+
+  useEffect(() => {
+    if (currentOrg && currentRole === 'Admin') {
+      loadMembers();
+    } else {
+      setLoading(false);
+    }
+  }, [currentOrg, currentRole, loadMembers]);
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();

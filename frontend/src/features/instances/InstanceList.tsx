@@ -51,7 +51,7 @@ export function InstanceList() {
 
   useEffect(() => {
     loadData();
-  }, [workflowId]);
+  }, [workflowId, loadData]);
 
   if (isLoading) return <LoadingScreen />;
   if (error || !workflow) return <ErrorState message={error || 'Not found'} onRetry={loadData} />;

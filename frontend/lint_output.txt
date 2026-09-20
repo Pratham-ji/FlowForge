@@ -1,0 +1,176 @@
+
+> frontend@0.0.0 lint
+> oxlint
+
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/features/workflows/WorkflowList.tsx:37:5]
+ 35 | 
+ 36 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 37 |     loadWorkflows();
+    :     ^^^^^^|^^^^^^
+    :           `-- Avoid calling setState() directly within an effect
+ 38 |   }, []);
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/features/organizations/OrganizationSettings.tsx:37:7]
+ 34 | 
+ 35 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 36 |     if (currentOrg && currentRole === 'Admin') {
+ 37 |       loadMembers();
+    :       ^^^^^|^^^^^
+    :            `-- Avoid calling setState() directly within an effect
+ 38 |     } else {
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/features/instances/InstanceList.tsx:53:5]
+ 51 | 
+ 52 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 53 |     loadData();
+    :     ^^^^|^^^
+    :         `-- Avoid calling setState() directly within an effect
+ 54 |   }, [workflowId]);
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'loadData'
+    ,-[src/features/instances/InstanceList.tsx:54:6]
+ 52 |   useEffect(() => {
+ 53 |     loadData();
+    :     ^^^^|^^^
+    :         `-- useEffect uses `loadData` here
+ 54 |   }, [workflowId]);
+    :      ^^^^^^^^^^^^
+ 55 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/features/instances/InstanceDetail.tsx:53:5]
+ 51 | 
+ 52 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 53 |     loadData();
+    :     ^^^^|^^^
+    :         `-- Avoid calling setState() directly within an effect
+ 54 |   }, [instanceId]);
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'loadData'
+    ,-[src/features/instances/InstanceDetail.tsx:54:6]
+ 52 |   useEffect(() => {
+ 53 |     loadData();
+    :     ^^^^|^^^
+    :         `-- useEffect uses `loadData` here
+ 54 |   }, [instanceId]);
+    :      ^^^^^^^^^^^^
+ 55 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/features/audit/InstanceAudit.tsx:51:5]
+ 49 | 
+ 50 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 51 |     loadData();
+    :     ^^^^|^^^
+    :         `-- Avoid calling setState() directly within an effect
+ 52 |   }, [instanceId]);
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'loadData'
+    ,-[src/features/audit/InstanceAudit.tsx:52:6]
+ 50 |   useEffect(() => {
+ 51 |     loadData();
+    :     ^^^^|^^^
+    :         `-- useEffect uses `loadData` here
+ 52 |   }, [instanceId]);
+    :      ^^^^^^^^^^^^
+ 53 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/features/workflows/WorkflowDetail.tsx:44:5]
+ 42 | 
+ 43 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 44 |     loadWorkflow();
+    :     ^^^^^^|^^^^^
+    :           `-- Avoid calling setState() directly within an effect
+ 45 |   }, [workflowId]);
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'loadWorkflow'
+    ,-[src/features/workflows/WorkflowDetail.tsx:45:6]
+ 43 |   useEffect(() => {
+ 44 |     loadWorkflow();
+    :     ^^^^^^|^^^^^
+    :           `-- useEffect uses `loadWorkflow` here
+ 45 |   }, [workflowId]);
+    :      ^^^^^^^^^^^^
+ 46 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
+    ,-[src/features/auth/AuthContext.tsx:90:16]
+ 89 |         }
+ 90 |       } catch (e) {
+    :                |
+    :                `-- 'e' is declared here
+ 91 |         api.clearStoredToken();
+    `----
+  help: Consider handling this error.
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+     ,-[src/features/auth/AuthContext.tsx:149:17]
+ 148 | 
+ 149 | export function useAuth(): AuthState {
+     :                 ^^^^^^^
+ 150 |   const ctx = useContext(AuthContext);
+     `----
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/features/auth/AuthContext.tsx:66:7]
+ 60 |   // Restore session on mount
+ 61 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 62 |     api.setUnauthorizedHandler(logout);
+ 63 | 
+ 64 |     const token = api.getStoredToken();
+ 65 |     if (!token) {
+ 66 |       setIsLoading(false);
+    :       ^^^^^^|^^^^^
+    :             `-- Avoid calling setState() directly within an effect
+ 67 |       return;
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+Found 13 warnings and 0 errors.
+Finished in 47ms on 37 files with 116 rules using 8 threads.

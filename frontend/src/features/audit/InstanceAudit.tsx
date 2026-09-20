@@ -49,7 +49,7 @@ export function InstanceAudit() {
 
   useEffect(() => {
     loadData();
-  }, [instanceId]);
+  }, [instanceId, loadData]);
 
   if (isLoading) return <LoadingScreen />;
   if (error || !instance || !workflow) return <ErrorState message={error || 'Not found'} onRetry={loadData} />;

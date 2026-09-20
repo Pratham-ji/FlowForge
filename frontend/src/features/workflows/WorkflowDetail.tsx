@@ -42,7 +42,7 @@ export function WorkflowDetail() {
 
   useEffect(() => {
     loadWorkflow();
-  }, [workflowId]);
+  }, [workflowId, loadWorkflow]);
 
   if (isLoading) return <LoadingScreen />;
   if (error || !workflow) return <ErrorState message={error || 'Not found'} onRetry={loadWorkflow} />;

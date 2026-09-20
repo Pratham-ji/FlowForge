@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           api.setStoredOrganization(targetOrg.id);
           await resolveRole(targetOrg.id, u);
         }
-      } catch (e) {
+      } catch {
         api.clearStoredToken();
       } finally {
         setIsLoading(false);
