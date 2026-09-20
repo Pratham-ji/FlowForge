@@ -8,6 +8,7 @@ module FlowForge.Api.Routes
   , flowForgeAPI
   , WorkflowsApi
   , InstancesApi
+  , OrganizationsApi
   ) where
 
 import Servant.API
@@ -19,7 +20,7 @@ import FlowForge.Api.Types
 import FlowForge.Api.Requests
 import FlowForge.Api.Responses
 
-type WorkflowsApi = 
+type WorkflowsApi =
        "workflows" :> Get '[JSON] [WorkflowDTO]
   :<|> "workflows" :> ReqBody '[JSON] CreateWorkflowRequest :> PostCreated '[JSON] WorkflowDTO
   :<|> "workflows" :> Capture "workflowId" UUID :> Get '[JSON] WorkflowDTO
@@ -35,16 +36,29 @@ type InstancesApi =
 
 
 
--- We split the API into Public and Protected. The `/me` actually needs Auth, so it goes to Protected. 
+-- We split the API into Public and Protected. The `/me` actually needs Auth, so it goes to Protected.
 -- Wait, if Login is in both, that's duplicative or we can structure it so Auth is checked optionally, or just strict.
 -- A cleaner way:
-type FlowForgeAPI = "api" :> "v1" :> 
+type OrganizationsApi = "organizations" :>
+  (    Get '[JSON] [OrganizationDTO]
+  :<|> ReqBody '[JSON] CreateOrganizationRequest :> Post '[JSON] OrganizationDTO
+  :<|> Capture "orgId" UUID :> Get '[JSON] OrganizationDTO
+  :<|> Capture "orgId" UUID :> "members" :>
+       (    Get '[JSON] [OrganizationMemberDTO]
+       :<|> ReqBody '[JSON] AddMemberRequest :> Post '[JSON] OrganizationMemberDTO
+       :<|> Capture "userId" UUID :> ReqBody '[JSON] ChangeRoleRequest :> Put '[JSON] OrganizationMemberDTO
+       :<|> Capture "userId" UUID :> Delete '[JSON] NoContent
+       )
+  )
+
+type FlowForgeAPI = "api" :> "v1" :>
   (    "health" :> Get '[JSON] String
   :<|> "ready"  :> Get '[JSON] String
   :<|> "auth" :> "login" :> ReqBody '[JSON] LoginRequest :> Post '[JSON] AuthResponse
   :<|> Auth '[JWT] AuthenticatedUser :> "me" :> Get '[JSON] UserDTO
-  :<|> Auth '[JWT] AuthenticatedUser :> WorkflowsApi
-  :<|> Auth '[JWT] AuthenticatedUser :> InstancesApi
+  :<|> Auth '[JWT] AuthenticatedUser :> Header "X-Organization-Id" UUID :> WorkflowsApi
+  :<|> Auth '[JWT] AuthenticatedUser :> Header "X-Organization-Id" UUID :> InstancesApi
+  :<|> Auth '[JWT] AuthenticatedUser :> OrganizationsApi
     )
 
 type RootAPI = FlowForgeAPI :<|> "api" :> "v1" :> "openapi.json" :> Get '[JSON] OpenApi

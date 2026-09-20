@@ -5,6 +5,10 @@ import { AppError } from '../../api/errors';
 
 interface AuthState {
   user: UserDTO | null;
+  currentOrg: api.OrganizationDTO | null;
+  currentRole: string | null;
+  organizations: api.OrganizationDTO[];
+  setCurrentOrgId: (id: string) => void;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -16,13 +20,42 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserDTO | null>(null);
+  const [organizations, setOrganizations] = useState<api.OrganizationDTO[]>([]);
+  const [currentOrg, setCurrentOrg] = useState<api.OrganizationDTO | null>(null);
+  const [currentRole, setCurrentRole] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const logout = useCallback(() => {
     api.clearStoredToken();
+    api.clearStoredOrganization();
     setUser(null);
+    setOrganizations([]);
+    setCurrentOrg(null);
+    setCurrentRole(null);
   }, []);
+
+  const resolveRole = async (orgId: string, u: UserDTO) => {
+    try {
+      const members = await api.listOrganizationMembers(orgId);
+      const m = members.find(m => m.userId === u.id);
+      setCurrentRole(m ? m.role : null);
+    } catch {
+      setCurrentRole(null);
+    }
+  };
+
+  const setCurrentOrgId = useCallback(async (id: string) => {
+    const org = organizations.find(o => o.id === id);
+    if (org) {
+      setCurrentOrg(org);
+      api.setStoredOrganization(id);
+      if (user) {
+        await resolveRole(id, user);
+      }
+    }
+  }, [organizations, user]);
 
   // Restore session on mount
   useEffect(() => {
@@ -33,12 +66,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return;
     }
-    api.getMe()
-      .then(setUser)
-      .catch(() => {
+
+    async function loadData() {
+      try {
+        const u = await api.getMe();
+        setUser(u);
+        const orgs = await api.listOrganizations();
+        setOrganizations(orgs);
+        const storedOrgId = api.getStoredOrganization();
+
+        let targetOrg = null;
+        if (storedOrgId && orgs.find(o => o.id === storedOrgId)) {
+          targetOrg = orgs.find(o => o.id === storedOrgId)!;
+        } else if (orgs.length > 0) {
+          targetOrg = orgs[0];
+        }
+
+        if (targetOrg) {
+          setCurrentOrg(targetOrg);
+          api.setStoredOrganization(targetOrg.id);
+          await resolveRole(targetOrg.id, u);
+        }
+      } catch (e) {
         api.clearStoredToken();
-      })
-      .finally(() => setIsLoading(false));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
 
     return () => {
       api.setUnauthorizedHandler(null);
@@ -50,7 +105,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await api.login({ email, password });
       api.setStoredToken(res.token);
-      setUser(res.user);
+
+      const u = await api.getMe();
+      setUser(u);
+      const orgs = await api.listOrganizations();
+      setOrganizations(orgs);
+      if (orgs.length > 0) {
+        const targetOrg = orgs[0];
+        setCurrentOrg(targetOrg);
+        api.setStoredOrganization(targetOrg.id);
+        await resolveRole(targetOrg.id, u);
+      }
     } catch (err) {
       if (err instanceof AppError && err.isUnauthorized) {
         setError('Invalid email or password.');
@@ -65,6 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        currentOrg,
+        currentRole,
+        organizations,
+        setCurrentOrgId,
         isLoading,
         isAuthenticated: user !== null,
         login,

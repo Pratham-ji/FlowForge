@@ -12,6 +12,11 @@ vi.mock('../api/client', async (importOriginal) => {
     getStoredToken: vi.fn(),
     setUnauthorizedHandler: vi.fn(),
     getMe: vi.fn(),
+    listOrganizations: vi.fn(),
+    listOrganizationMembers: vi.fn(),
+    getStoredOrganization: vi.fn(),
+    setStoredOrganization: vi.fn(),
+    clearStoredOrganization: vi.fn(),
   };
 });
 
@@ -55,7 +60,10 @@ describe('ProtectedRoute', () => {
 
   it('renders children if authenticated', async () => {
     vi.mocked(api.getStoredToken).mockReturnValue('fake-token');
-    vi.mocked(api.getMe).mockResolvedValue({ id: '1', organizationId: '1', role: 'Admin' });
+    vi.mocked(api.getMe).mockResolvedValue({ id: '1' });
+    vi.mocked(api.listOrganizations).mockResolvedValue([{ id: 'org1', name: 'Org 1' }]);
+    vi.mocked(api.listOrganizationMembers).mockResolvedValue([{ userId: '1', role: 'Admin' }]);
+    vi.mocked(api.getStoredOrganization).mockReturnValue('org1');
 
     render(
       <MemoryRouter initialEntries={['/protected']}>

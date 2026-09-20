@@ -13,7 +13,7 @@ import { useAuth } from '../auth/AuthContext';
 
 export function WorkflowDetail() {
   const { workflowId } = useParams<{ workflowId: string }>();
-  const { user } = useAuth();
+  const { currentRole } = useAuth();
 
   const [workflow, setWorkflow] = useState<WorkflowDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,7 +47,7 @@ export function WorkflowDetail() {
   if (isLoading) return <LoadingScreen />;
   if (error || !workflow) return <ErrorState message={error || 'Not found'} onRetry={loadWorkflow} />;
 
-  const canManage = user?.role === 'Admin' || user?.role === 'Manager';
+  const canManage = currentRole === 'Admin' || currentRole === 'Manager';
 
   const handleActivate = async () => {
     if (!workflowId) return;

@@ -8,13 +8,20 @@ module FlowForge.Api.Requests
   , TransitionDefinitionDTO(..)
   , ExecuteTransitionRequest(..)
   , toDomainTransitions
+  , CreateOrganizationRequest(..)
+  , AddMemberRequest(..)
+  , ChangeRoleRequest(..)
   ) where
 
 import GHC.Generics
+import FlowForge.Api.Types
+import Control.Lens
+import Data.OpenApi.Lens
 import Data.Aeson
 import Data.OpenApi (ToSchema(..), genericDeclareNamedSchema, defaultSchemaOptions)
 import qualified Data.OpenApi as OA
-import Data.UUID (UUID)
+import Data.UUID
+import qualified Data.Text
 import Data.Text (Text)
 
 import FlowForge.Domain.Types (WorkflowStateId(..), TransitionId(..), WorkflowAction(..), Permission(..), WorkflowTransition(..))
@@ -115,3 +122,64 @@ toDomainTransitions dtos = mapM convert dtos
         , wtAction = WorkflowAction (reqTransAction dto)
         , wtRequiredPermission = perm
         }
+
+data AddMemberRequest = AddMemberRequest
+  { reqUserId :: UUID
+  , reqRole :: RoleDTO
+  } deriving (Show, Generic)
+
+instance FromJSON AddMemberRequest where
+  parseJSON = genericParseJSON (defaultOptions { fieldLabelModifier = renameId })
+    where
+      renameId "reqUserId" = "userId"
+      renameId "reqRole" = "role"
+      renameId x = x
+
+instance ToSchema AddMemberRequest where
+  declareNamedSchema proxy = genericDeclareNamedSchema defaultSchemaOptions proxy
+    & mapped.schema.properties %~
+      ( \props -> props
+          & at "userId" .~ (props ^. at "reqUserId")
+          & at "reqUserId" .~ Nothing
+          & at "role" .~ (props ^. at "reqRole")
+          & at "reqRole" .~ Nothing
+      )
+    & mapped.schema.required %~ (\reqs -> filter (/= "reqUserId") (filter (/= "reqRole") reqs) ++ ["userId", "role"])
+
+data ChangeRoleRequest = ChangeRoleRequest
+  { reqNewRole :: RoleDTO
+  } deriving (Show, Generic)
+
+instance FromJSON ChangeRoleRequest where
+  parseJSON = genericParseJSON (defaultOptions { fieldLabelModifier = renameId })
+    where
+      renameId "reqNewRole" = "role"
+      renameId x = x
+
+instance ToSchema ChangeRoleRequest where
+  declareNamedSchema proxy = genericDeclareNamedSchema defaultSchemaOptions proxy
+    & mapped.schema.properties %~
+      ( \props -> props
+          & at "role" .~ (props ^. at "reqNewRole")
+          & at "reqNewRole" .~ Nothing
+      )
+    & mapped.schema.required %~ (\reqs -> filter (/= "reqNewRole") reqs ++ ["role"])
+
+data CreateOrganizationRequest = CreateOrganizationRequest
+  { orgNameReq :: Data.Text.Text
+  } deriving (Show, Generic)
+
+instance FromJSON CreateOrganizationRequest where
+  parseJSON = genericParseJSON (defaultOptions { fieldLabelModifier = renameId })
+    where
+      renameId "orgNameReq" = "name"
+      renameId x = x
+
+instance ToSchema CreateOrganizationRequest where
+  declareNamedSchema proxy = genericDeclareNamedSchema defaultSchemaOptions proxy
+    & mapped.schema.properties %~
+      ( \props -> props
+          & at "name" .~ (props ^. at "orgNameReq")
+          & at "orgNameReq" .~ Nothing
+      )
+    & mapped.schema.required %~ (\reqs -> filter (/= "orgNameReq") reqs ++ ["name"])

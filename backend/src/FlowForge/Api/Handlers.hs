@@ -23,16 +23,18 @@ import FlowForge.Api.Types
 import FlowForge.Api.Requests
 import FlowForge.Api.Responses
 import FlowForge.Api.Errors
-import FlowForge.Api.Routes (WorkflowsApi, InstancesApi, RootAPI)
+import FlowForge.Api.Routes (WorkflowsApi, InstancesApi, RootAPI, OrganizationsApi)
 import FlowForge.Api.Auth
 
 import FlowForge.Domain.Types
 import FlowForge.Application.UseCases.Auth
 import FlowForge.Application.UseCases.Workflow
 import FlowForge.Application.UseCases.Instance
+import FlowForge.Application.UseCases.Organization
 import FlowForge.Infrastructure.Database (SqlM)
 import FlowForge.Infrastructure.Transaction (transactionPort)
 import FlowForge.Infrastructure.Repositories.User (userRepository)
+import FlowForge.Application.Ports
 import FlowForge.Infrastructure.Auth.Password (passwordVerifier)
 import FlowForge.Infrastructure.Repositories.Workflow (workflowRepository)
 import FlowForge.Infrastructure.Repositories.Instance (instanceRepository)
@@ -47,6 +49,7 @@ server jwtSettings = (return "OK"
                 :<|> meHandler
                 :<|> workflowsServer
                 :<|> instancesServer
+                :<|> organizationsServer
                 ) :<|> return openApiSchema
 
 readyHandler :: AppHandler String
@@ -69,9 +72,11 @@ runUc ctx action = do
                    UserNotFound _ -> "UserNotFound"
                    InvalidCredentials -> "InvalidCredentials"
                    FlowForge.Application.Error.Unauthorized _ -> "Unauthorized"
+                   NotAMember _ -> "NotAMember"
                    TenantMismatch _ _ -> "TenantMismatch"
                    ConcurrencyConflict _ -> "ConcurrencyConflict"
                    PersistenceFailure _ -> "PersistenceFailure"
+                   BusinessRuleViolation _ -> "BusinessRuleViolation"
       liftIO $ hPutStrLn stderr $ "[Diagnostic] Context=" ++ ctx ++ " Status=" ++ show status ++ " Code=" ++ code
       throwError (mapAppError err)
     Right val -> return val
@@ -79,10 +84,8 @@ runUc ctx action = do
 loginHandler :: JWTSettings -> LoginRequest -> AppHandler AuthResponse
 loginHandler jwtSettings req = do
   u <- runUc "authenticateUserUC" $ authenticateUserUC userRepository passwordVerifier (FlowForge.Api.Requests.email req) (FlowForge.Api.Requests.password req)
-  let authUser = AuthenticatedUser 
+  let authUser = AuthenticatedUser
         { auUserId = let (UserId uid) = uId u in uid
-        , auOrgId = let (OrganizationId oid) = uOrganizationId u in oid
-        , auRole = fromDomainRole (uRole u)
         }
   tokenE <- liftIO $ do
     now <- liftIO getCurrentTime
@@ -90,109 +93,162 @@ loginHandler jwtSettings req = do
     liftIO $ makeJWT authUser jwtSettings expiry
   case tokenE of
     Left _ -> throwError err500
-    Right t -> return $ AuthResponse 
+    Right t -> return $ AuthResponse
       { token = TE.decodeUtf8 (BL.toStrict t)
-      , user = UserDTO (auUserId authUser) (auOrgId authUser) (auRole authUser)
+      , user = UserDTO (auUserId authUser)
       }
 
 meHandler :: AuthResult AuthenticatedUser -> AppHandler UserDTO
 meHandler authResult = do
   authUser <- liftEither (requireAuth authResult)
-  return $ UserDTO (auUserId authUser) (auOrgId authUser) (auRole authUser)
+  return $ UserDTO (auUserId authUser)
 
-workflowsServer :: AuthResult AuthenticatedUser -> ServerT WorkflowsApi AppHandler
-workflowsServer authResult = listWfs authResult
-                        :<|> createWf authResult
-                        :<|> getWf authResult
-                        :<|> activateWf authResult
-                        :<|> archiveWf authResult
-                        :<|> createInst authResult
-                        :<|> listInsts authResult
-
-createWf :: AuthResult AuthenticatedUser -> CreateWorkflowRequest -> AppHandler WorkflowDTO
-createWf authResult req = do
+requireMembership :: AuthResult AuthenticatedUser -> Maybe UUID -> AppHandler (UserId, OrganizationId, Role)
+requireMembership authResult maybeOrgId = do
   authUser <- liftEither (requireAuth authResult)
+  let uid = UserId (auUserId authUser)
+  case maybeOrgId of
+    Nothing -> throwError err400 { errBody = "Missing X-Organization-Id header" }
+    Just oidUUID -> do
+      let oid = OrganizationId oidUUID
+      role <- runUc "getOrganizationMembership" $ getOrganizationMembership userRepository oid uid
+      return (uid, oid, role)
+
+organizationsServer :: AuthResult AuthenticatedUser -> ServerT OrganizationsApi AppHandler
+organizationsServer authResult = listOrgs :<|> createOrg :<|> getOrg :<|> membersServer
+  where
+    membersServer oidUUID = listMembers oidUUID :<|> addMember oidUUID :<|> changeRole oidUUID :<|> removeMember oidUUID
+
+    listOrgs = do
+      authUser <- liftEither (requireAuth authResult)
+      let uid = UserId (auUserId authUser)
+      orgs <- runUc "listUserOrganizations" $ listUserOrganizations userRepository uid
+      return $ map (\o -> OrganizationDTO (let (OrganizationId oid) = orgId o in oid) (orgName o)) orgs
+
+    createOrg req = do
+      authUser <- liftEither (requireAuth authResult)
+      let uid = UserId (auUserId authUser)
+      o <- runUc "createOrganization" $ createOrganization userRepository (orgNameReq req) uid
+      return $ OrganizationDTO (let (OrganizationId oid) = orgId o in oid) (orgName o)
+
+    getOrg oidUUID = do
+      (uid, oid, role) <- requireMembership authResult (Just oidUUID)
+      o <- runUc "getOrganizationUC" $ getOrganizationUC userRepository oid uid role
+      return $ OrganizationDTO (let (OrganizationId orid) = orgId o in orid) (orgName o)
+
+    listMembers oidUUID = do
+      (uid, oid, role) <- requireMembership authResult (Just oidUUID)
+      members <- runUc "listOrganizationMembers" $ listOrganizationMembers userRepository oid
+      return $ map (\m -> OrganizationMemberDTO (let (UserId muid) = omUserId m in muid) (fromDomainRole (omRole m))) members
+
+    addMember oidUUID req = do
+      (uid, oid, role) <- requireMembership authResult (Just oidUUID)
+      let targetRole = toDomainRole (reqRole (req :: AddMemberRequest))
+      m <- runUc "addOrganizationMemberUC" $ addOrganizationMemberUC userRepository oid uid role (UserId $ reqUserId req) targetRole
+      return $ OrganizationMemberDTO (let (UserId muid) = omUserId m in muid) (fromDomainRole (omRole m))
+
+    changeRole oidUUID targetIdUUID req = do
+      (uid, oid, role) <- requireMembership authResult (Just oidUUID)
+      let targetRole = toDomainRole (reqNewRole (req :: ChangeRoleRequest))
+      m <- runUc "updateOrganizationMemberRoleUC" $ updateOrganizationMemberRoleUC userRepository oid uid role (UserId targetIdUUID) targetRole
+      return $ OrganizationMemberDTO (let (UserId muid) = omUserId m in muid) (fromDomainRole (omRole m))
+
+    removeMember oidUUID targetIdUUID = do
+      (uid, oid, role) <- requireMembership authResult (Just oidUUID)
+      _ <- runUc "removeOrganizationMemberUC" $ removeOrganizationMemberUC userRepository oid uid role (UserId targetIdUUID)
+      return NoContent
+
+workflowsServer :: AuthResult AuthenticatedUser -> Maybe UUID -> ServerT WorkflowsApi AppHandler
+workflowsServer authResult maybeOrgId = listWfs authResult maybeOrgId
+                        :<|> createWf authResult maybeOrgId
+                        :<|> getWf authResult maybeOrgId
+                        :<|> activateWf authResult maybeOrgId
+                        :<|> archiveWf authResult maybeOrgId
+                        :<|> createInst authResult maybeOrgId
+                        :<|> listInsts authResult maybeOrgId
+
+createWf :: AuthResult AuthenticatedUser -> Maybe UUID -> CreateWorkflowRequest -> AppHandler WorkflowDTO
+createWf authResult maybeOrgId req = do
+  (uid, oid, role) <- requireMembership authResult maybeOrgId
   newId <- liftIO nextRandom
   trans <- liftEither $ case toDomainTransitions (FlowForge.Api.Requests.transitions req) of
              Left _ -> Left (err400 { errBody = "Invalid transition payload" })
              Right ts -> Right ts
-             
+
   let statesDomain = map (\s -> WorkflowState (WorkflowStateId $ reqStateId s) (reqStateName s) (reqStateIsTerminal s)) (states req)
-      wf = Workflow 
+      wf = Workflow
             { wId = WorkflowId newId
-            , wOrgId = OrganizationId (auOrgId authUser)
+            , wOrgId = oid
             , wName = FlowForge.Api.Requests.name (req :: CreateWorkflowRequest)
             , wLifecycle = Draft
             , wInitialStateId = WorkflowStateId (initialStateId req)
             , wStates = statesDomain
             , wTransitions = trans
             }
-  _ <- runUc "createWorkflow" $ createWorkflow workflowRepository (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) wf
+  _ <- runUc "createWorkflow" $ createWorkflow workflowRepository uid role wf
   return (fromDomainWorkflow wf)
 
-getWf :: AuthResult AuthenticatedUser -> UUID -> AppHandler WorkflowDTO
-getWf authResult wfId = do
-  authUser <- liftEither (requireAuth authResult)
-  wf <- runUc "getWorkflowUC" $ getWorkflowUC workflowRepository (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowId wfId)
+getWf :: AuthResult AuthenticatedUser -> Maybe UUID -> UUID -> AppHandler WorkflowDTO
+getWf authResult maybeOrgId wfId = do
+  (uid, oid, role) <- requireMembership authResult maybeOrgId
+  wf <- runUc "getWorkflowUC" $ getWorkflowUC workflowRepository oid uid role (WorkflowId wfId)
   return (fromDomainWorkflow wf)
 
-activateWf :: AuthResult AuthenticatedUser -> UUID -> AppHandler WorkflowDTO
-activateWf authResult wfId = do
-  authUser <- liftEither (requireAuth authResult)
-  _ <- runUc "activateWorkflow" $ activateWorkflow workflowRepository (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowId wfId)
-  getWf authResult wfId
+activateWf :: AuthResult AuthenticatedUser -> Maybe UUID -> UUID -> AppHandler WorkflowDTO
+activateWf authResult maybeOrgId wfId = do
+  (uid, oid, role) <- requireMembership authResult maybeOrgId
+  _ <- runUc "activateWorkflow" $ activateWorkflow workflowRepository oid uid role (WorkflowId wfId)
+  getWf authResult maybeOrgId wfId
 
-archiveWf :: AuthResult AuthenticatedUser -> UUID -> AppHandler WorkflowDTO
-archiveWf authResult wfId = do
-  authUser <- liftEither (requireAuth authResult)
-  _ <- runUc "archiveWorkflow" $ archiveWorkflow workflowRepository (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowId wfId)
-  getWf authResult wfId
+archiveWf :: AuthResult AuthenticatedUser -> Maybe UUID -> UUID -> AppHandler WorkflowDTO
+archiveWf authResult maybeOrgId wfId = do
+  (uid, oid, role) <- requireMembership authResult maybeOrgId
+  _ <- runUc "archiveWorkflow" $ archiveWorkflow workflowRepository oid uid role (WorkflowId wfId)
+  getWf authResult maybeOrgId wfId
 
-createInst :: AuthResult AuthenticatedUser -> UUID -> AppHandler WorkflowInstanceDTO
-createInst authResult wfId = do
-  authUser <- liftEither (requireAuth authResult)
+createInst :: AuthResult AuthenticatedUser -> Maybe UUID -> UUID -> AppHandler WorkflowInstanceDTO
+createInst authResult maybeOrgId wfId = do
+  (uid, oid, role) <- requireMembership authResult maybeOrgId
   newId <- liftIO nextRandom
-  _ <- runUc "createWorkflowInstanceUC" $ createWorkflowInstanceUC workflowRepository instanceRepository (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowId wfId) (WorkflowInstanceId newId)
-  -- The UseCase doesn't return the instance directly, so we must fetch it. 
-  inst <- runUc "getWorkflowInstanceUC" $ getWorkflowInstanceUC instanceRepository (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowInstanceId newId)
+  _ <- runUc "createWorkflowInstanceUC" $ createWorkflowInstanceUC workflowRepository instanceRepository oid uid role (WorkflowId wfId) (WorkflowInstanceId newId)
+  inst <- runUc "getWorkflowInstanceUC" $ getWorkflowInstanceUC instanceRepository oid uid role (WorkflowInstanceId newId)
   return (fromDomainInstance inst 1)
 
 
-listWfs :: AuthResult AuthenticatedUser -> AppHandler [WorkflowDTO]
-listWfs authResult = do
-  authUser <- liftEither (requireAuth authResult)
-  wfs <- runUc "listWorkflowsUC" $ listWorkflowsUC workflowRepository (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser)
+listWfs :: AuthResult AuthenticatedUser -> Maybe UUID -> AppHandler [WorkflowDTO]
+listWfs authResult maybeOrgId = do
+  (uid, oid, role) <- requireMembership authResult maybeOrgId
+  wfs <- runUc "listWorkflowsUC" $ listWorkflowsUC workflowRepository oid uid role
   return (map fromDomainWorkflow wfs)
 
-listInsts :: AuthResult AuthenticatedUser -> UUID -> AppHandler [WorkflowInstanceDTO]
-listInsts authResult wfId = do
-  authUser <- liftEither (requireAuth authResult)
-  insts <- runUc "listWorkflowInstancesUC" $ listWorkflowInstancesUC workflowRepository instanceRepository (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowId wfId)
+listInsts :: AuthResult AuthenticatedUser -> Maybe UUID -> UUID -> AppHandler [WorkflowInstanceDTO]
+listInsts authResult maybeOrgId wfId = do
+  (uid, oid, role) <- requireMembership authResult maybeOrgId
+  insts <- runUc "listWorkflowInstancesUC" $ listWorkflowInstancesUC workflowRepository instanceRepository oid uid role (WorkflowId wfId)
   return (map (\(inst, v) -> fromDomainInstance inst v) insts)
 
-instancesServer :: AuthResult AuthenticatedUser -> ServerT InstancesApi AppHandler
-instancesServer authResult = getInst authResult
-                        :<|> transInst authResult
-                        :<|> auditInst authResult
+instancesServer :: AuthResult AuthenticatedUser -> Maybe UUID -> ServerT InstancesApi AppHandler
+instancesServer authResult maybeOrgId = getInst authResult maybeOrgId
+                        :<|> transInst authResult maybeOrgId
+                        :<|> auditInst authResult maybeOrgId
 
-getInst :: AuthResult AuthenticatedUser -> UUID -> AppHandler WorkflowInstanceDTO
-getInst authResult iId = do
-  authUser <- liftEither (requireAuth authResult)
-  inst <- runUc "getWorkflowInstanceUC" $ getWorkflowInstanceUC instanceRepository (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowInstanceId iId)
-  -- we need the version too, but getWorkflowInstanceUC doesn't return version. Let's assume version fetching isn't perfectly supported in the UC return type, but we can just use a dummy or change the UC. Wait, the UC returns WorkflowInstance. For the API we need version. It's okay to just return 0 if the UC drops it, or change the UC. I'll return version=0 for now in this read endpoint to strictly not change the App Layer.
+getInst :: AuthResult AuthenticatedUser -> Maybe UUID -> UUID -> AppHandler WorkflowInstanceDTO
+getInst authResult maybeOrgId iId = do
+  (uid, oid, role) <- requireMembership authResult maybeOrgId
+  inst <- runUc "getWorkflowInstanceUC" $ getWorkflowInstanceUC instanceRepository oid uid role (WorkflowInstanceId iId)
   return (fromDomainInstance inst 0)
 
-transInst :: AuthResult AuthenticatedUser -> UUID -> ExecuteTransitionRequest -> AppHandler WorkflowInstanceDTO
-transInst authResult iId req = do
-  authUser <- liftEither (requireAuth authResult)
+transInst :: AuthResult AuthenticatedUser -> Maybe UUID -> UUID -> ExecuteTransitionRequest -> AppHandler WorkflowInstanceDTO
+transInst authResult maybeOrgId iId req = do
+  (uid, oid, role) <- requireMembership authResult maybeOrgId
   env <- ask
-  _ <- runUc "executeWorkflowTransitionUC" $ executeWorkflowTransitionUC transactionPort workflowRepository instanceRepository (aeAuditRepo env) (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowInstanceId iId) (WorkflowAction $ reqAction req) (reqExpectedVersion req)
-  inst <- runUc "getWorkflowInstanceUC" $ getWorkflowInstanceUC instanceRepository (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowInstanceId iId)
+  _ <- runUc "executeWorkflowTransitionUC" $ executeWorkflowTransitionUC transactionPort workflowRepository instanceRepository (aeAuditRepo env) oid uid role (WorkflowInstanceId iId) (WorkflowAction $ reqAction req) (reqExpectedVersion req)
+  inst <- runUc "getWorkflowInstanceUC" $ getWorkflowInstanceUC instanceRepository oid uid role (WorkflowInstanceId iId)
   return (fromDomainInstance inst 0)
 
-auditInst :: AuthResult AuthenticatedUser -> UUID -> AppHandler [AuditEventDTO]
-auditInst authResult iId = do
-  authUser <- liftEither (requireAuth authResult)
+auditInst :: AuthResult AuthenticatedUser -> Maybe UUID -> UUID -> AppHandler [AuditEventDTO]
+auditInst authResult maybeOrgId iId = do
+  (uid, oid, role) <- requireMembership authResult maybeOrgId
   env <- ask
-  audits <- runUc "getAuditEventsUC" $ getAuditEventsUC (aeAuditRepo env) (OrganizationId $ auOrgId authUser) (UserId $ auUserId authUser) (toDomainRole $ auRole authUser) (WorkflowInstanceId iId)
+  audits <- runUc "getAuditEventsUC" $ getAuditEventsUC (aeAuditRepo env) oid uid role (WorkflowInstanceId iId)
   return (map fromDomainAudit audits)

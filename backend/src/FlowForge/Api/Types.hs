@@ -47,8 +47,6 @@ fromDomainRole Viewer = ViewerDTO
 
 data AuthenticatedUser = AuthenticatedUser
   { auUserId :: UUID
-  , auOrgId  :: UUID
-  , auRole   :: RoleDTO
   } deriving (Eq, Show, Generic)
 
 instance ToJSON AuthenticatedUser

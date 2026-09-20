@@ -24,19 +24,19 @@ spec = do
       iDb <- newIORef Map.empty
       aDb <- newIORef []
 
-      let orgId = OrganizationId (mkId 1)
+      let testOrgId = OrganizationId (mkId 1)
           wfId_ = WorkflowId (mkId 1)
           userIdVal = UserId (mkId 1)
           stateId = WorkflowStateId (mkId 1)
           instId = WorkflowInstanceId (mkId 1)
-          
-          testWf = Workflow wfId_ orgId "Test" Active stateId [WorkflowState stateId "Init" False] []
-      
+
+          testWf = Workflow wfId_ testOrgId "Test" Active stateId [WorkflowState stateId "Init" False] []
+
       modifyIORef wDb (Map.insert wfId_ testWf)
 
-      let wRepo = WorkflowRepository 
+      let wRepo = WorkflowRepository
             { saveWorkflow = \w -> do modifyIORef wDb (Map.insert (wId w) w); return (Right ())
-            , getWorkflow = \o wfId -> do 
+            , getWorkflow = \o wfId -> do
                 db <- readIORef wDb
                 case Map.lookup wfId db of
                   Just w -> if wOrgId w == o then return (Right w) else return (Left (TenantMismatch o (wOrgId w)))
@@ -63,8 +63,8 @@ spec = do
           txPort = TransactionPort { withTransaction = id }
 
       -- Act
-      _ <- executeWorkflowTransitionUC txPort wRepo iRepo aRepo orgId userIdVal Member instId (WorkflowAction "Submit") 1
-      res <- createWorkflowInstanceUC wRepo iRepo orgId userIdVal Member wfId_ instId
+      _ <- executeWorkflowTransitionUC txPort wRepo iRepo aRepo testOrgId userIdVal Member instId (WorkflowAction "Submit") 1
+      res <- createWorkflowInstanceUC wRepo iRepo testOrgId userIdVal Member wfId_ instId
 
       -- Assert
       case res of

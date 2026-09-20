@@ -15,9 +15,9 @@ export function WorkflowCreate() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { currentRole } = useAuth();
 
-  if (user?.role === 'Viewer') {
+  if (currentRole === 'Viewer' || currentRole === 'Member') {
     return <EmptyState title="Unauthorized" description="You do not have permission to create workflows." />;
   }
 

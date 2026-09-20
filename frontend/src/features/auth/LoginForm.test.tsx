@@ -82,7 +82,7 @@ describe('LoginForm', () => {
     const user = userEvent.setup();
     vi.mocked(api.login).mockResolvedValue({
       token: 'fake-jwt',
-      user: { id: '1', organizationId: '1', role: 'Admin' },
+      user: { id: '1' },
     });
 
     renderForm();

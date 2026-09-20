@@ -13,6 +13,11 @@ vi.mock('../../api/client', async (importOriginal) => {
     ...actual,
     getStoredToken: vi.fn(),
     getMe: vi.fn(),
+    listOrganizations: vi.fn(),
+    listOrganizationMembers: vi.fn(),
+    getStoredOrganization: vi.fn(),
+    setStoredOrganization: vi.fn(),
+    clearStoredOrganization: vi.fn(),
     getInstance: vi.fn(),
     getWorkflow: vi.fn(),
     getAuditEvents: vi.fn(),
@@ -23,7 +28,10 @@ describe('InstanceAudit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.getStoredToken).mockReturnValue('fake-token');
-    vi.mocked(api.getMe).mockResolvedValue({ id: '1', organizationId: 'org1', role: 'Admin' });
+    vi.mocked(api.getMe).mockResolvedValue({ id: '1' });
+    vi.mocked(api.listOrganizations).mockResolvedValue([{ id: 'org1', name: 'Org 1' }]);
+    vi.mocked(api.listOrganizationMembers).mockResolvedValue([{ userId: '1', role: 'Admin' }]);
+    vi.mocked(api.getStoredOrganization).mockReturnValue('org1');
   });
 
   const renderComponent = (path = '/app/instances/inst1/audit') =>

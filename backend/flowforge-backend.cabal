@@ -23,6 +23,7 @@ library
         FlowForge.Application.Ports
         FlowForge.Application.UseCases.Workflow
         FlowForge.Application.UseCases.Instance
+        FlowForge.Application.UseCases.Organization
         FlowForge.Infrastructure.Database
         FlowForge.Infrastructure.Repositories.Workflow
         FlowForge.Infrastructure.Repositories.Instance

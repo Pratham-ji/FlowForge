@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
 
 export function DashboardPage() {
-  const { user } = useAuth();
+  const { currentRole } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -19,14 +19,14 @@ export function DashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-gray-600 mb-6">
-            You are authenticated as <span className="font-semibold">{user?.role}</span>.
+            You are authenticated as <span className="font-semibold">{currentRole}</span>.
             Use FlowForge to define, execute, and monitor strongly-typed business workflows.
           </p>
           <div className="flex gap-4">
             <Button onClick={() => navigate('/app/workflows')}>
               View Workflows
             </Button>
-            {user?.role !== 'Viewer' && (
+            {currentRole !== 'Viewer' && (
               <Button variant="secondary" onClick={() => navigate('/app/workflows/new')}>
                 Create New Workflow
               </Button>

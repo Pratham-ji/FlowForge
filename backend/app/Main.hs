@@ -18,11 +18,13 @@ main = do
   pool <- initDbPool (B.unpack $ acDbConnString config)
 
   jwtKeyStr <- lookupEnv "JWT_SECRET"
+  corsOriginStr <- lookupEnv "CORS_ALLOWED_ORIGIN"
   key <- case (acEnvironment config, jwtKeyStr) of
     (Production, Nothing) -> error "JWT_SECRET is required in production!"
     (_, Just str)         -> return $ fromSecret (B.pack str)
     (Development, Nothing)-> generateKey
   let jwtSettings = defaultJWTSettings key
+      corsOrigin = fmap B.pack corsOriginStr
 
   putStrLn $ "Starting FlowForge server on port " ++ show (acServerPort config)
-  run (acServerPort config) (appWith pool jwtSettings auditRepository)
+  run (acServerPort config) (appWith pool jwtSettings auditRepository corsOrigin)

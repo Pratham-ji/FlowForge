@@ -7,8 +7,6 @@ export type Lifecycle = 'Draft' | 'Active' | 'Archived';
 
 export interface UserDTO {
   id: string;
-  organizationId: string;
-  role: Role;
 }
 
 export interface AuthResponse {

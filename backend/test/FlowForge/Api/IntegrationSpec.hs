@@ -41,14 +41,21 @@ setupDb conn = do
   _ <- execute_ conn "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
   schemaSql <- B.readFile "migrations/001_initial_schema.sql"
   authSql <- B.readFile "migrations/002_authentication.sql"
+  perfSql <- B.readFile "migrations/003_performance_indexes.sql"
+  identSql <- B.readFile "migrations/004_identity.sql"
   _ <- execute_ conn (fromString $ B.unpack schemaSql)
   _ <- execute_ conn (fromString $ B.unpack authSql)
-  _ <- execute conn "INSERT INTO organizations (id) VALUES (?)" (Only (mkId 1))
-  _ <- execute conn "INSERT INTO organizations (id) VALUES (?)" (Only (mkId 2))
+  _ <- execute_ conn (fromString $ B.unpack perfSql)
+  _ <- execute_ conn (fromString $ B.unpack identSql)
+  _ <- execute conn "INSERT INTO organizations (id, name) VALUES (?, 'Org A')" (Only (mkId 1))
+  _ <- execute conn "INSERT INTO organizations (id, name) VALUES (?, 'Org B')" (Only (mkId 2))
   hash <- hashPasswordIO "password"
-  _ <- execute conn "INSERT INTO users (id, organization_id, role, email, password_hash) VALUES (?, ?, 'Admin', 'admin@example.com', ?)" (mkId 100, mkId 1, hash)
-  _ <- execute conn "INSERT INTO users (id, organization_id, role, email, password_hash) VALUES (?, ?, 'Viewer', 'viewer@example.com', ?)" (mkId 101, mkId 1, hash)
-  _ <- execute conn "INSERT INTO users (id, organization_id, role, email, password_hash) VALUES (?, ?, 'Admin', 'adminb@example.com', ?)" (mkId 200, mkId 2, hash)
+  _ <- execute conn "INSERT INTO users (id, email, password_hash) VALUES (?, 'admin@example.com', ?)" (mkId 100, hash)
+  _ <- execute conn "INSERT INTO organization_members (organization_id, user_id, role) VALUES (?, ?, 'Admin')" (mkId 1, mkId 100)
+  _ <- execute conn "INSERT INTO users (id, email, password_hash) VALUES (?, 'viewer@example.com', ?)" (mkId 101, hash)
+  _ <- execute conn "INSERT INTO organization_members (organization_id, user_id, role) VALUES (?, ?, 'Viewer')" (mkId 1, mkId 101)
+  _ <- execute conn "INSERT INTO users (id, email, password_hash) VALUES (?, 'adminb@example.com', ?)" (mkId 200, hash)
+  _ <- execute conn "INSERT INTO organization_members (organization_id, user_id, role) VALUES (?, ?, 'Admin')" (mkId 2, mkId 200)
   return ()
 
 failingAuditRepo :: AuditRepository SqlM
@@ -63,8 +70,8 @@ getApps = do
   key <- generateKey
   let jwtSettings = defaultJWTSettings key
   let testConfig = AppConfig "" 8080 Development Nothing
-  let appNormal = appWith pool jwtSettings auditRepository
-  let appFailing = appWith pool jwtSettings failingAuditRepo
+  let appNormal = appWith pool jwtSettings auditRepository Nothing
+  let appFailing = appWith pool jwtSettings failingAuditRepo Nothing
   return (appNormal, appFailing, pool, jwtSettings)
 
 authHeader :: String -> String -> WaiSession st [Header]
@@ -74,7 +81,12 @@ authHeader email pass = do
   case decode (simpleBody res) :: Maybe AuthResponse of
      Just auth -> do
        let t = token auth
-       return [(mk "Authorization", B.append "Bearer " (TE.encodeUtf8 t))]
+       let orgHeader = case email of
+             "admin@example.com" -> [(mk "X-Organization-Id", B.pack "00000000-0000-0000-0000-000000000001")]
+             "viewer@example.com" -> [(mk "X-Organization-Id", B.pack "00000000-0000-0000-0000-000000000001")]
+             "adminb@example.com" -> [(mk "X-Organization-Id", B.pack "00000000-0000-0000-0000-000000000002")]
+             _ -> []
+       return $ (mk "Authorization", B.append "Bearer " (TE.encodeUtf8 t)) : orgHeader
      Nothing -> return []
 
 
@@ -99,7 +111,7 @@ spec = do
 
       it "expired token -> 401" $ do
         -- Generate expired token
-        let testUser = AuthenticatedUser (mkId 100) (mkId 1) AdminDTO
+        let testUser = AuthenticatedUser (mkId 100)
         now <- liftIO getCurrentTime
         let expiredTime = addUTCTime (-7200) now
         expiredTokenE <- liftIO $ makeJWT testUser jwtSettings (Just expiredTime)
@@ -347,3 +359,63 @@ spec = do
         res4 <- request "GET" (B.append "/api/v1/instances/" (fromString $ show $ respInstId instDto)) headersA ""
         instDto2 <- liftIO $ requireJust "Expected WorkflowInstanceDTO" (decode (simpleBody res4))
         liftIO $ respInstState instDto2 `shouldBe` mkId 40
+
+    describe "Organizations API" $ do
+      it "member can GET organization" $ do
+        headers <- authHeader "admin@example.com" "password"
+        res <- request "GET" "/api/v1/organizations/00000000-0000-0000-0000-000000000001" headers ""
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 200
+
+      it "non-member cannot GET organization" $ do
+        headers <- authHeader "adminb@example.com" "password"
+        res <- request "GET" "/api/v1/organizations/00000000-0000-0000-0000-000000000001" headers ""
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 403
+
+      it "member can list members" $ do
+        headers <- authHeader "admin@example.com" "password"
+        res <- request "GET" "/api/v1/organizations/00000000-0000-0000-0000-000000000001/members" headers ""
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 200
+
+      it "non-member cannot list members" $ do
+        headers <- authHeader "adminb@example.com" "password"
+        res <- request "GET" "/api/v1/organizations/00000000-0000-0000-0000-000000000001/members" headers ""
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 403
+
+      it "Admin can add member" $ do
+        headers <- authHeader "admin@example.com" "password"
+        let req = object ["userId" .= ("00000000-0000-0000-0000-0000000000c8"::String), "role" .= ("Viewer"::String)]
+        res <- request "POST" "/api/v1/organizations/00000000-0000-0000-0000-000000000001/members" ((mk "Content-Type", "application/json") : headers) (encode req)
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 200
+
+      it "Viewer cannot add member" $ do
+        headers <- authHeader "viewer@example.com" "password"
+        let req = object ["userId" .= ("00000000-0000-0000-0000-0000000000c9"::String), "role" .= ("Viewer"::String)]
+        res <- request "POST" "/api/v1/organizations/00000000-0000-0000-0000-000000000001/members" ((mk "Content-Type", "application/json") : headers) (encode req)
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 403
+
+      it "Admin can change role" $ do
+        headers <- authHeader "admin@example.com" "password"
+        let req = object ["role" .= ("Manager"::String)]
+        res <- request "PUT" "/api/v1/organizations/00000000-0000-0000-0000-000000000001/members/00000000-0000-0000-0000-000000000065" ((mk "Content-Type", "application/json") : headers) (encode req)
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 200
+
+      it "Admin cannot demote final Admin" $ do
+        headers <- authHeader "admin@example.com" "password"
+        let req = object ["role" .= ("Manager"::String)]
+        res <- request "PUT" "/api/v1/organizations/00000000-0000-0000-0000-000000000001/members/00000000-0000-0000-0000-000000000064" ((mk "Content-Type", "application/json") : headers) (encode req)
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 409
+
+      it "Admin cannot remove final Admin" $ do
+        headers <- authHeader "admin@example.com" "password"
+        res <- request "DELETE" "/api/v1/organizations/00000000-0000-0000-0000-000000000001/members/00000000-0000-0000-0000-000000000064" headers ""
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 409
+
+      it "Admin can remove member" $ do
+        headers <- authHeader "admin@example.com" "password"
+        res <- request "DELETE" "/api/v1/organizations/00000000-0000-0000-0000-000000000001/members/00000000-0000-0000-0000-000000000065" headers ""
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 200
+
+      it "Non-admin cannot remove member" $ do
+        headers <- authHeader "viewer@example.com" "password"
+        res <- request "DELETE" "/api/v1/organizations/00000000-0000-0000-0000-000000000001/members/00000000-0000-0000-0000-000000000064" headers ""
+        liftIO $ statusCode (simpleStatus res) `shouldBe` 403

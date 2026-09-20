@@ -15,6 +15,11 @@ vi.mock('../../api/client', async (importOriginal) => {
     ...actual,
     getStoredToken: vi.fn(),
     getMe: vi.fn(),
+    listOrganizations: vi.fn(),
+    listOrganizationMembers: vi.fn(),
+    getStoredOrganization: vi.fn(),
+    setStoredOrganization: vi.fn(),
+    clearStoredOrganization: vi.fn(),
     listWorkflows: vi.fn(),
     getWorkflow: vi.fn(),
     createWorkflow: vi.fn(),
@@ -27,7 +32,10 @@ describe('Workflow Features', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.getStoredToken).mockReturnValue('fake-token');
-    vi.mocked(api.getMe).mockResolvedValue({ id: '1', organizationId: '2', role: 'Admin' });
+    vi.mocked(api.getMe).mockResolvedValue({ id: '1' });
+    vi.mocked(api.listOrganizations).mockResolvedValue([{ id: 'org1', name: 'Org 1' }]);
+    vi.mocked(api.listOrganizationMembers).mockResolvedValue([{ userId: '1', role: 'Admin' }]);
+    vi.mocked(api.getStoredOrganization).mockReturnValue('org1');
   });
 
   const renderComponent = (element: React.ReactElement, path = '/', routePattern = path) =>
@@ -73,7 +81,10 @@ describe('Workflow Features', () => {
 
   describe('WorkflowCreate', () => {
     it('prevents Viewer from creating', async () => {
-      vi.mocked(api.getMe).mockResolvedValue({ id: '1', organizationId: '2', role: 'Viewer' });
+      vi.mocked(api.getMe).mockResolvedValue({ id: '1' });
+      vi.mocked(api.listOrganizations).mockResolvedValue([{ id: 'org1', name: 'Org 1' }]);
+    vi.mocked(api.listOrganizationMembers).mockResolvedValue([{ userId: '1', role: 'Viewer' }]);
+      vi.mocked(api.getStoredOrganization).mockReturnValue('org1');
       renderComponent(<WorkflowCreate />);
       expect(await screen.findByText('Unauthorized')).toBeInTheDocument();
     });
@@ -81,7 +92,7 @@ describe('Workflow Features', () => {
     it('submits form and navigates', async () => {
       const user = userEvent.setup();
       vi.mocked(api.createWorkflow).mockResolvedValue({
-        id: 'new-wf', name: 'New', lifecycle: 'Draft', organizationId: 'org', initialStateId: 's', states: [], transitions: []
+        id: 'new-wf', name: 'New', lifecycle: 'Draft', organizationId: 'org1', initialStateId: 's', states: [], transitions: []
       });
 
       renderComponent(<WorkflowCreate />);
@@ -142,7 +153,10 @@ describe('Workflow Features', () => {
     });
 
     it('hides activation controls for Viewer', async () => {
-      vi.mocked(api.getMe).mockResolvedValue({ id: '1', organizationId: '2', role: 'Viewer' });
+      vi.mocked(api.listOrganizationMembers).mockResolvedValue([{ userId: '1', role: 'Viewer' }]);
+      vi.mocked(api.getMe).mockResolvedValue({ id: '1' });
+      vi.mocked(api.listOrganizations).mockResolvedValue([{ id: 'org1', name: 'Org 1' }]);
+      vi.mocked(api.getStoredOrganization).mockReturnValue('org1');
       vi.mocked(api.getWorkflow).mockResolvedValue(mockWf);
 
       renderComponent(<WorkflowDetail />, '/app/workflows/wf-detail-1', '/app/workflows/:workflowId');

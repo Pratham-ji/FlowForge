@@ -20,8 +20,8 @@ mkTransId w = TransitionId (fromWords 0 0 0 w)
 userIdVal :: UserId
 userIdVal = UserId (fromWords 0 0 0 99)
 
-orgId :: OrganizationId
-orgId = OrganizationId (fromWords 0 0 0 1)
+testOrgId :: OrganizationId
+testOrgId = OrganizationId (fromWords 0 0 0 1)
 
 wId_ :: WorkflowId
 wId_ = WorkflowId (fromWords 0 0 0 1)
@@ -32,16 +32,16 @@ instId = WorkflowInstanceId (fromWords 0 0 0 1)
 validWorkflow :: Workflow
 validWorkflow = Workflow
   { wId = wId_
-  , wOrgId = orgId
+  , wOrgId = testOrgId
   , wName = "Valid"
   , wLifecycle = Active
   , wInitialStateId = mkStateId 1
-  , wStates = 
+  , wStates =
       [ WorkflowState (mkStateId 1) "Draft" False
       , WorkflowState (mkStateId 2) "Review" False
       , WorkflowState (mkStateId 3) "Done" True
       ]
-  , wTransitions = 
+  , wTransitions =
       [ WorkflowTransition (mkTransId 1) (mkStateId 1) (mkStateId 2) (WorkflowAction "Submit") TransitionInstance
       , WorkflowTransition (mkTransId 2) (mkStateId 2) (mkStateId 3) (WorkflowAction "Approve") TransitionInstance
       , WorkflowTransition (mkTransId 3) (mkStateId 2) (mkStateId 1) (WorkflowAction "Reject") TransitionInstance
@@ -52,7 +52,7 @@ baseInst :: WorkflowInstance
 baseInst = WorkflowInstance
   { wiId = instId
   , wiWorkflowId = wId_
-  , wiOrgId = orgId
+  , wiOrgId = testOrgId
   , wiCurrentStateId = mkStateId 1
   , wiCreatedBy = userIdVal
   }
@@ -91,7 +91,7 @@ spec = do
       let badOrg = OrganizationId (fromWords 0 0 0 999)
       let inst = baseInst { wiOrgId = badOrg }
       let res = transition validWorkflow inst userIdVal Member (WorkflowAction "Submit")
-      res `shouldBe` Left (OrganizationMismatch badOrg orgId)
+      res `shouldBe` Left (OrganizationMismatch badOrg testOrgId)
 
     it "rejects if WorkflowInstanceMismatch" $ do
       let badWId = WorkflowId (fromWords 0 0 0 999)
@@ -117,7 +117,7 @@ spec = do
           Left _ -> False
 
 genAction :: Gen WorkflowAction
-genAction = frequency 
+genAction = frequency
   [ (8, elements [WorkflowAction "Submit", WorkflowAction "Approve", WorkflowAction "Reject"])
   , (2, WorkflowAction . T.pack <$> listOf (elements ['a'..'z']))
   ]

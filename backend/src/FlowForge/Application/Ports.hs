@@ -32,7 +32,18 @@ data AuditRepository m = AuditRepository
   }
 
 data UserRepository m = UserRepository
-  { getUserByEmail :: Text -> m (Either AppError (User, Text)) -- Returns (User, PasswordHash)
+  { getUserByEmail :: Text -> m (Either AppError (User, Text))
+  , getUserById :: UserId -> m (Either AppError User)
+  , saveUser :: User -> m (Either AppError ())
+  , getOrganizationMembership :: OrganizationId -> UserId -> m (Either AppError Role)
+  , listUserOrganizations :: UserId -> m (Either AppError [Organization])
+  , listOrganizationMembers :: OrganizationId -> m (Either AppError [OrganizationMember])
+  , createOrganization :: Text -> UserId -> m (Either AppError Organization)
+  , getOrganization :: OrganizationId -> m (Either AppError Organization)
+  , addOrganizationMember :: OrganizationId -> UserId -> Role -> m (Either AppError OrganizationMember)
+  , updateOrganizationMemberRole :: OrganizationId -> UserId -> Role -> m (Either AppError OrganizationMember)
+  , removeOrganizationMember :: OrganizationId -> UserId -> m (Either AppError ())
+  , countAdmins :: OrganizationId -> m (Either AppError Int)
   }
 
 data PasswordVerifier m = PasswordVerifier

@@ -14,6 +14,11 @@ vi.mock('../../api/client', async (importOriginal) => {
     ...actual,
     getStoredToken: vi.fn(),
     getMe: vi.fn(),
+    listOrganizations: vi.fn(),
+    listOrganizationMembers: vi.fn(),
+    getStoredOrganization: vi.fn(),
+    setStoredOrganization: vi.fn(),
+    clearStoredOrganization: vi.fn(),
     getWorkflow: vi.fn(),
     listInstances: vi.fn(),
     createInstance: vi.fn(),
@@ -26,7 +31,10 @@ describe('Instance Features', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.getStoredToken).mockReturnValue('fake-token');
-    vi.mocked(api.getMe).mockResolvedValue({ id: '1', organizationId: '2', role: 'Admin' });
+    vi.mocked(api.getMe).mockResolvedValue({ id: '1' });
+    vi.mocked(api.listOrganizations).mockResolvedValue([{ id: 'org1', name: 'Org 1' }]);
+    vi.mocked(api.listOrganizationMembers).mockResolvedValue([{ userId: '1', role: 'Admin' }]);
+    vi.mocked(api.getStoredOrganization).mockReturnValue('org1');
   });
 
   const renderComponent = (element: React.ReactElement, path = '/', routePattern = path) =>

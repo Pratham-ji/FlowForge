@@ -13,7 +13,7 @@ import { useAuth } from '../auth/AuthContext';
 export function InstanceList() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { currentRole } = useAuth();
 
   const [workflow, setWorkflow] = useState<WorkflowDTO | null>(null);
   const [instances, setInstances] = useState<WorkflowInstanceDTO[]>([]);
@@ -56,7 +56,7 @@ export function InstanceList() {
   if (isLoading) return <LoadingScreen />;
   if (error || !workflow) return <ErrorState message={error || 'Not found'} onRetry={loadData} />;
 
-  const canCreate = user?.role !== 'Viewer' && workflow.lifecycle === 'Active';
+  const canCreate = currentRole !== 'Viewer' && workflow.lifecycle === 'Active';
 
   const handleCreateInstance = async () => {
     if (!workflowId) return;

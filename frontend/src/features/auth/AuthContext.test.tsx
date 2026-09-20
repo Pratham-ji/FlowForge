@@ -11,6 +11,11 @@ vi.mock('../../api/client', async (importOriginal) => {
     setStoredToken: vi.fn(),
     clearStoredToken: vi.fn(),
     getMe: vi.fn(),
+    listOrganizations: vi.fn(),
+    listOrganizationMembers: vi.fn(),
+    getStoredOrganization: vi.fn(),
+    setStoredOrganization: vi.fn(),
+    clearStoredOrganization: vi.fn(),
     login: vi.fn(),
     setUnauthorizedHandler: vi.fn(),
   };
@@ -22,7 +27,7 @@ function TestComponent() {
   return (
     <div>
       <div data-testid="auth-status">{isAuthenticated ? 'Authenticated' : 'Unauthenticated'}</div>
-      <div data-testid="user-role">{user?.role}</div>
+      <div data-testid="user-id">{user?.id}</div>
       <button onClick={logout}>Logout</button>
     </div>
   );
@@ -35,7 +40,10 @@ describe('AuthContext', () => {
 
   it('restores session successfully', async () => {
     vi.mocked(api.getStoredToken).mockReturnValue('fake-token');
-    vi.mocked(api.getMe).mockResolvedValue({ id: '1', organizationId: '2', role: 'Admin' });
+    vi.mocked(api.getMe).mockResolvedValue({ id: '1' });
+    vi.mocked(api.listOrganizations).mockResolvedValue([{ id: 'org1', name: 'Org 1' }]);
+    vi.mocked(api.listOrganizationMembers).mockResolvedValue([{ userId: '1', role: 'Admin' }]);
+    vi.mocked(api.getStoredOrganization).mockReturnValue('org1');
 
     render(
       <AuthProvider>
@@ -47,7 +55,7 @@ describe('AuthContext', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
-      expect(screen.getByTestId('user-role')).toHaveTextContent('Admin');
+      expect(screen.getByTestId('user-id')).toHaveTextContent('1');
     });
   });
 
@@ -69,7 +77,10 @@ describe('AuthContext', () => {
 
   it('registers unauthorized handler that triggers logout', async () => {
     vi.mocked(api.getStoredToken).mockReturnValue('fake-token');
-    vi.mocked(api.getMe).mockResolvedValue({ id: '1', organizationId: '2', role: 'Admin' });
+    vi.mocked(api.getMe).mockResolvedValue({ id: '1' });
+    vi.mocked(api.listOrganizations).mockResolvedValue([{ id: 'org1', name: 'Org 1' }]);
+    vi.mocked(api.listOrganizationMembers).mockResolvedValue([{ userId: '1', role: 'Admin' }]);
+    vi.mocked(api.getStoredOrganization).mockReturnValue('org1');
 
     // Capture the registered handler
     let registeredHandler: (() => void) | null = null;
@@ -101,7 +112,10 @@ describe('AuthContext', () => {
 
   it('clears session on manual logout', async () => {
     vi.mocked(api.getStoredToken).mockReturnValue('fake-token');
-    vi.mocked(api.getMe).mockResolvedValue({ id: '1', organizationId: '2', role: 'Admin' });
+    vi.mocked(api.getMe).mockResolvedValue({ id: '1' });
+    vi.mocked(api.listOrganizations).mockResolvedValue([{ id: 'org1', name: 'Org 1' }]);
+    vi.mocked(api.listOrganizationMembers).mockResolvedValue([{ userId: '1', role: 'Admin' }]);
+    vi.mocked(api.getStoredOrganization).mockReturnValue('org1');
 
     render(
       <AuthProvider>

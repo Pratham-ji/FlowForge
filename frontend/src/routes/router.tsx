@@ -11,6 +11,7 @@ import { WorkflowDetail } from '../features/workflows/WorkflowDetail';
 import { InstanceList } from '../features/instances/InstanceList';
 import { InstanceDetail } from '../features/instances/InstanceDetail';
 import { InstanceAudit } from '../features/audit/InstanceAudit';
+import { OrganizationSettings } from '../features/organizations/OrganizationSettings';
 
 export const router = createBrowserRouter([
   {
@@ -61,6 +62,10 @@ export const router = createBrowserRouter([
       {
         path: 'instances/:instanceId/audit',
         element: <InstanceAudit />,
+      },
+      {
+        path: 'settings',
+        element: <OrganizationSettings />,
       },
     ],
   },

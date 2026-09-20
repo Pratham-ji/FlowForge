@@ -23,8 +23,12 @@ setupDb pool = withResource pool $ \conn -> do
   _ <- execute_ conn "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
   schemaSql <- B.readFile "migrations/001_initial_schema.sql"
   authSql <- B.readFile "migrations/002_authentication.sql"
+  perfSql <- B.readFile "migrations/003_performance_indexes.sql"
+  identSql <- B.readFile "migrations/004_identity.sql"
   _ <- execute_ conn (Query schemaSql)
   _ <- execute_ conn (Query authSql)
+  _ <- execute_ conn (Query perfSql)
+  _ <- execute_ conn (Query identSql)
   return ()
 
 mkId :: Word32 -> UUID
@@ -58,7 +62,8 @@ setupFixtures :: Connection -> IO ()
 setupFixtures conn = do
   _ <- execute conn "INSERT INTO organizations (id) VALUES (?)" (Only (mkId 1))
   _ <- execute conn "INSERT INTO organizations (id) VALUES (?)" (Only (mkId 2))
-  _ <- execute conn "INSERT INTO users (id, organization_id, role, email, password_hash) VALUES (?, ?, 'Admin', 'admin@example.com', '$2b$10$xyz')" (mkId 100, mkId 1)
+  _ <- execute conn "INSERT INTO users (id, email, password_hash) VALUES (?, 'admin@example.com', '$2b$10$xyz')" (Only (mkId 100))
+  _ <- execute conn "INSERT INTO organization_members (organization_id, user_id, role) VALUES (?, ?, 'Admin')" (mkId 1, mkId 100)
   return ()
 
 baseWf :: Workflow
@@ -68,12 +73,12 @@ baseWf = Workflow
   , wName = "Test Workflow"
   , wLifecycle = Draft
   , wInitialStateId = st1
-  , wStates = 
+  , wStates =
     [ WorkflowState st1 "Init" False
     , WorkflowState st2 "Review" False
     , WorkflowState st3 "Done" True
     ]
-  , wTransitions = 
+  , wTransitions =
     [ WorkflowTransition t1 st1 st2 (WorkflowAction "Submit") TransitionInstance
     ]
   }
@@ -87,12 +92,12 @@ spec = do
       action pool
       closeDbPool pool
     ) $ do
-    
+
     it "saves and retrieves a workflow successfully" $ \pool -> runSqlM pool $ do
       let wRepo = workflowRepository
       res <- saveWorkflow wRepo baseWf
       liftIO $ res `shouldBe` Right ()
-      
+
       ret <- getWorkflow wRepo org1Id wfId
       liftIO $ case ret of
         Right w -> do
@@ -111,10 +116,10 @@ spec = do
 
     it "rejects duplicate transition business keys (Constraint Test B)" $ \pool -> runSqlM pool $ do
       let wRepo = workflowRepository
-      let badWf = baseWf { wTransitions = 
+      let badWf = baseWf { wTransitions =
             [ WorkflowTransition t1 st1 st2 (WorkflowAction "Submit") TransitionInstance
             , WorkflowTransition (TransitionId (mkId 402)) st1 st3 (WorkflowAction "Submit") TransitionInstance
-            ] 
+            ]
           }
       res <- saveWorkflow wRepo badWf
       liftIO $ case res of
@@ -124,7 +129,7 @@ spec = do
     it "enforces tenant isolation" $ \pool -> runSqlM pool $ do
       let wRepo = workflowRepository
       _ <- saveWorkflow wRepo baseWf
-      
+
       ret <- getWorkflow wRepo org2Id wfId
       liftIO $ ret `shouldBe` Left (WorkflowNotFound wfId)
 
@@ -132,11 +137,11 @@ spec = do
       let wRepo = workflowRepository
       let iRepo = instanceRepository
       _ <- saveWorkflow wRepo baseWf
-      
+
       let inst = WorkflowInstance instId wfId org1Id st1 u1Id
       res <- saveWorkflowInstance iRepo inst 1
       liftIO $ res `shouldBe` Right ()
-      
+
       ret <- getWorkflowInstance iRepo org1Id instId
       liftIO $ case ret of
         Right (i, v) -> do
@@ -148,34 +153,34 @@ spec = do
       let wRepo = workflowRepository
       let iRepo = instanceRepository
       _ <- saveWorkflow wRepo baseWf
-      
+
       let inst = WorkflowInstance instId wfId org1Id st1 u1Id
       _ <- saveWorkflowInstance iRepo inst 1
-      
+
       let inst' = inst { wiCurrentStateId = st2 }
       res1 <- saveWorkflowInstance iRepo inst' 2
       liftIO $ res1 `shouldBe` Right ()
-      
+
       let inst'' = inst { wiCurrentStateId = st3 }
-      res2 <- saveWorkflowInstance iRepo inst'' 2 
+      res2 <- saveWorkflowInstance iRepo inst'' 2
       liftIO $ res2 `shouldBe` Left (ConcurrencyConflict instId)
 
     it "rolls back transaction on Left AppError" $ \pool -> runSqlM pool $ do
       let wRepo = workflowRepository
       let iRepo = instanceRepository
       let txPort = transactionPort
-      
+
       let activeWf = baseWf { wLifecycle = Active }
       _ <- saveWorkflow wRepo activeWf
       let inst = WorkflowInstance instId wfId org1Id st1 u1Id
       _ <- saveWorkflowInstance iRepo inst 1
-      
+
       let fakeAction = withTransaction txPort $ do
-            _ <- saveWorkflowInstance iRepo inst 2 
+            _ <- saveWorkflowInstance iRepo inst 2
             return $ Left (Unauthorized u1Id)
-      
+
       _ <- fakeAction
-      
+
       ret <- getWorkflowInstance iRepo org1Id instId
       liftIO $ case ret of
         Right (_, v) -> v `shouldBe` 1

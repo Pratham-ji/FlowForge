@@ -44,7 +44,7 @@ resource "azurerm_container_app" "backend" {
       }
       env {
         name  = "CORS_ALLOWED_ORIGIN"
-        value = "https://ca-frontend-${var.environment}.${azurerm_container_app_environment.env.default_domain}"
+        value = var.netlify_frontend_url
       }
       env {
         name        = "DATABASE_URL"
@@ -86,48 +86,6 @@ resource "azurerm_container_app" "backend" {
   secret {
     name  = "jwt-secret"
     value = var.jwt_secret
-  }
-
-  registry {
-    server   = azurerm_container_registry.acr.login_server
-    identity = azurerm_user_assigned_identity.aca_identity.id
-  }
-}
-
-# Frontend Container App
-resource "azurerm_container_app" "frontend" {
-  name                         = "ca-frontend-${var.environment}"
-  container_app_environment_id = azurerm_container_app_environment.env.id
-  resource_group_name          = azurerm_resource_group.rg.name
-  revision_mode                = "Single"
-
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.aca_identity.id]
-  }
-
-  template {
-    min_replicas = 0
-    max_replicas = 1 # Cost-conscious
-
-    container {
-      name   = "frontend"
-      image  = var.frontend_image
-      cpu    = 0.25
-      memory = "0.5Gi"
-
-      # Note: VITE_API_BASE_URL is baked into the image at build time.
-    }
-  }
-
-  ingress {
-    allow_insecure_connections = false
-    external_enabled           = true
-    target_port                = 8080
-    traffic_weight {
-      percentage      = 100
-      latest_revision = true
-    }
   }
 
   registry {

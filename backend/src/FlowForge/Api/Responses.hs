@@ -11,6 +11,8 @@ module FlowForge.Api.Responses
   , fromDomainInstance
   , fromDomainAudit
   , customOptions
+  , OrganizationDTO(..)
+  , OrganizationMemberDTO(..)
   ) where
 
 import GHC.Generics
@@ -52,12 +54,25 @@ customOptions = defaultOptions { fieldLabelModifier = renameId }
 
 data UserDTO = UserDTO
   { respUserId :: UUID
-  , respOrgId :: UUID
-  , respRole :: RoleDTO
   } deriving (Show, Generic)
 instance ToJSON UserDTO where toJSON = genericToJSON customOptions
 instance FromJSON UserDTO where parseJSON = genericParseJSON customOptions
 instance ToSchema UserDTO
+
+data OrganizationDTO = OrganizationDTO
+  { dtoOrgId :: UUID
+  , dtoOrgName :: Text
+  } deriving (Show, Generic)
+instance ToJSON OrganizationDTO where toJSON = genericToJSON customOptions
+instance ToSchema OrganizationDTO
+
+data OrganizationMemberDTO = OrganizationMemberDTO
+  { dtoUserId :: UUID
+  , dtoRole :: RoleDTO
+  } deriving (Show, Generic)
+instance ToJSON OrganizationMemberDTO where toJSON = genericToJSON customOptions
+instance ToSchema OrganizationMemberDTO
+
 
 data AuthResponse = AuthResponse
   { token :: Text

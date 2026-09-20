@@ -40,8 +40,7 @@ variable "backend_image" {
   default     = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 }
 
-variable "frontend_image" {
-  description = "Docker image for the frontend. Use a dummy image initially to bootstrap ACA."
+variable "netlify_frontend_url" {
+  description = "The exact HTTPS URL of the deployed Netlify frontend (for CORS)"
   type        = string
-  default     = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 }

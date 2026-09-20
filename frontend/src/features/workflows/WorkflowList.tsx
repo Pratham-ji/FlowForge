@@ -14,7 +14,7 @@ export function WorkflowList() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { currentRole } = useAuth();
 
   const loadWorkflows = async () => {
     setIsLoading(true);
@@ -43,7 +43,7 @@ export function WorkflowList() {
     return <ErrorState message={error} onRetry={loadWorkflows} />;
   }
 
-  const canCreate = user?.role !== 'Viewer';
+  const canCreate = currentRole !== 'Viewer';
 
   return (
     <div className="space-y-6">

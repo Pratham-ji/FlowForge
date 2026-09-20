@@ -3,13 +3,16 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext';
 
 export function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, currentRole, currentOrg, organizations, setCurrentOrgId } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navigation = [
     { name: 'Dashboard', href: '/app', end: true },
     { name: 'Workflows', href: '/app/workflows' },
   ];
+  if (currentRole === 'Admin') {
+    navigation.push({ name: 'Settings', href: '/app/settings' });
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
@@ -44,6 +47,24 @@ export function AppLayout() {
             <span className="text-2xl font-bold text-gray-900 tracking-tight">FlowForge</span>
           </div>
 
+
+          <div className="px-4 py-4 border-b border-gray-200">
+            <label htmlFor="org-switcher" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Organization
+            </label>
+            <select
+              id="org-switcher"
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+              value={currentOrg?.id || ''}
+              onChange={(e) => setCurrentOrgId(e.target.value)}
+            >
+              {organizations.map(org => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex-1 overflow-y-auto py-4">
             <ul className="space-y-1 px-3">
               {navigation.map((item) => (
@@ -72,7 +93,7 @@ export function AppLayout() {
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-700">Logged in as</p>
                 <p className="text-xs font-medium text-gray-500 truncate" title={user?.id}>
-                  Role: {user?.role}
+                  User ID: {user?.id?.substring(0,8) || ""}...
                 </p>
               </div>
             </div>

@@ -8,9 +8,11 @@ data AppError
   | WorkflowNotFound WorkflowId
   | WorkflowInstanceNotFound WorkflowInstanceId
   | UserNotFound String
+  | NotAMember String
   | InvalidCredentials
   | Unauthorized UserId
   | TenantMismatch OrganizationId OrganizationId
   | ConcurrencyConflict WorkflowInstanceId
   | PersistenceFailure String
+  | BusinessRuleViolation String
   deriving (Eq, Show)

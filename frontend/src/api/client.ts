@@ -13,6 +13,7 @@ import type {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 
 const TOKEN_KEY = 'flowforge_token';
+const ORG_KEY = 'flowforge_org';
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -26,6 +27,18 @@ export function clearStoredToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+export function getStoredOrganization(): string | null {
+  return localStorage.getItem(ORG_KEY);
+}
+
+export function setStoredOrganization(orgId: string): void {
+  localStorage.setItem(ORG_KEY, orgId);
+}
+
+export function clearStoredOrganization(): void {
+  localStorage.removeItem(ORG_KEY);
+}
+
 let unauthorizedHandler: (() => void) | null = null;
 
 export function setUnauthorizedHandler(handler: (() => void) | null): void {
@@ -37,12 +50,18 @@ async function request<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const token = getStoredToken();
+  const org = getStoredOrganization();
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> | undefined),
   };
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Do not add org context to auth or org routes
+  if (org && !path.startsWith('/auth') && path !== '/me' && !path.startsWith('/organizations')) {
+    headers['X-Organization-Id'] = org;
   }
 
   if (options.body && !headers['Content-Type']) {
@@ -143,4 +162,46 @@ export async function executeTransition(
 
 export async function getAuditEvents(instanceId: string): Promise<AuditEventDTO[]> {
   return request<AuditEventDTO[]>(`/instances/${instanceId}/audit`);
+}
+
+// --- Organizations ---
+export interface OrganizationDTO {
+  id: string;
+  name: string;
+}
+export interface OrganizationMemberDTO {
+  userId: string;
+  role: string;
+}
+export async function listOrganizationMembers(orgId: string): Promise<OrganizationMemberDTO[]> {
+  return request<OrganizationMemberDTO[]>(`/organizations/${orgId}/members`);
+}
+export async function listOrganizations(): Promise<OrganizationDTO[]> {
+  return request<OrganizationDTO[]>('/organizations');
+}
+export async function createOrganization(name: string): Promise<OrganizationDTO> {
+  return request<OrganizationDTO>('/organizations', {
+    method: 'POST',
+    body: JSON.stringify({ name })
+  });
+}
+
+export async function addOrganizationMember(orgId: string, email: string, role: string): Promise<OrganizationMemberDTO> {
+  return request<OrganizationMemberDTO>(`/organizations/${orgId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ email, role })
+  });
+}
+
+export async function updateOrganizationMemberRole(orgId: string, userId: string, role: string): Promise<OrganizationMemberDTO> {
+  return request<OrganizationMemberDTO>(`/organizations/${orgId}/members/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ role })
+  });
+}
+
+export async function removeOrganizationMember(orgId: string, userId: string): Promise<void> {
+  return request<void>(`/organizations/${orgId}/members/${userId}`, {
+    method: 'DELETE'
+  });
 }
