@@ -1,0 +1,8 @@
+dist-newstyle
+.ghc.environment.*
+.env
+.env.*
+!.env.example
+.git
+.vscode
+.idea

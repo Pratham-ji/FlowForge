@@ -3,6 +3,7 @@ module FlowForge.Application.UseCases.Instance
   , executeWorkflowTransitionUC
   , getWorkflowInstanceUC
   , getAuditEventsUC
+  , listWorkflowInstancesUC
   ) where
 
 import FlowForge.Domain.Types
@@ -96,3 +97,18 @@ getAuditEventsUC
 getAuditEventsUC aRepo orgId userId role instId = runExceptT $ do
   checkPerm role ReadAudit userId
   ExceptT $ getAuditEvents aRepo orgId instId
+
+
+listWorkflowInstancesUC
+  :: Monad m
+  => WorkflowRepository m
+  -> InstanceRepository m
+  -> OrganizationId
+  -> UserId
+  -> Role
+  -> WorkflowId
+  -> m (Either AppError [(WorkflowInstance, Int)])
+listWorkflowInstancesUC wRepo iRepo orgId userId role wfId = runExceptT $ do
+  checkPerm role ReadInstance userId
+  _ <- ExceptT $ getWorkflow wRepo orgId wfId
+  ExceptT $ listWorkflowInstances iRepo orgId wfId

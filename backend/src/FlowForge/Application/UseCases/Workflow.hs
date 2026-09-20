@@ -3,6 +3,7 @@ module FlowForge.Application.UseCases.Workflow
   , activateWorkflow
   , archiveWorkflow
   , getWorkflowUC
+  , listWorkflowsUC
   ) where
 
 import FlowForge.Domain.Types
@@ -79,3 +80,15 @@ getWorkflowUC
 getWorkflowUC repo orgId userId role wfId = runExceptT $ do
   checkPerm role ReadWorkflow userId
   ExceptT $ getWorkflow repo orgId wfId
+
+
+listWorkflowsUC
+  :: Monad m
+  => WorkflowRepository m
+  -> OrganizationId
+  -> UserId
+  -> Role
+  -> m (Either AppError [Workflow])
+listWorkflowsUC repo orgId userId role = runExceptT $ do
+  checkPerm role ReadWorkflow userId
+  ExceptT $ listWorkflows repo orgId

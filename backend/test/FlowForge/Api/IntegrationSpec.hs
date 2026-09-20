@@ -22,6 +22,7 @@ import Network.HTTP.Types.Status (statusCode)
 import Data.CaseInsensitive (mk)
 import Network.HTTP.Types.Header (Header)
 import FlowForge.Api.Server (appWith)
+import FlowForge.Config (AppConfig(..), Environment(..))
 import FlowForge.Infrastructure.Database (initDbPool, DbPool, SqlM)
 import Database.PostgreSQL.Simple (Connection, execute_, execute, Only(..))
 import Data.UUID (UUID, fromWords)
@@ -61,8 +62,9 @@ getApps = do
   withResource pool setupDb
   key <- generateKey
   let jwtSettings = defaultJWTSettings key
-  let appNormal = appWith pool jwtSettings auditRepository
-  let appFailing = appWith pool jwtSettings failingAuditRepo
+  let testConfig = AppConfig "" 8080 Development Nothing
+  let appNormal = appWith testConfig pool jwtSettings auditRepository
+  let appFailing = appWith testConfig pool jwtSettings failingAuditRepo
   return (appNormal, appFailing, pool, jwtSettings)
 
 authHeader :: String -> String -> WaiSession st [Header]
@@ -83,18 +85,18 @@ requireJust _ (Just x) = pure x
 spec :: Spec
 spec = do
   (appNormal, appFailing, _pool, jwtSettings) <- runIO getApps
-  
+
   with (return appNormal) $ do
     describe "Authentication Matrix" $ do
       it "missing token -> 401" $ do
         get "/api/v1/me" `shouldRespondWith` 401
-      
+
       it "malformed token -> 401" $ do
         request "GET" "/api/v1/me" [(mk "Authorization", "Bearer invalid.token.xyz")] "" `shouldRespondWith` 401
-        
+
       it "invalid signature -> 401" $ do
         request "GET" "/api/v1/me" [(mk "Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.invalid")] "" `shouldRespondWith` 401
-        
+
       it "expired token -> 401" $ do
         -- Generate expired token
         let testUser = AuthenticatedUser (mkId 100) (mkId 1) AdminDTO
@@ -116,7 +118,7 @@ spec = do
       it "invalid credentials -> 401" $ do
         let loginReq = object ["email" .= ("admin@example.com"::String), "password" .= ("wrong"::String)]
         request "POST" "/api/v1/auth/login" [(mk "Content-Type", "application/json")] (encode loginReq) `shouldRespondWith` 401
-        
+
       it "valid token accessing protected endpoint -> 200" $ do
         headers <- authHeader "admin@example.com" "password"
         res <- request "GET" "/api/v1/me" headers ""
@@ -155,10 +157,71 @@ spec = do
         res <- request "POST" "/api/v1/workflows" ((mk "Content-Type", "application/json") : headersB) (encode wfReq)
         liftIO $ statusCode (simpleStatus res) `shouldBe` 201
         wfDto <- liftIO $ requireJust "Expected WorkflowDTO" (decode (simpleBody res))
-        
+
         headersA <- authHeader "admin@example.com" "password"
         let wfPath = B.append "/api/v1/workflows/" (fromString $ show $ respWfId wfDto)
         request "GET" wfPath headersA "" `shouldRespondWith` 404
+
+
+    describe "List Endpoints" $ do
+      it "lists workflows with tenant isolation" $ do
+        headersA <- authHeader "admin@example.com" "password"
+
+        let wfReqA = object [
+              "name" .= ("WfA"::String),
+              "initialStateId" .= mkId 11,
+              "states" .= [ object ["id" .= mkId 11, "name" .= ("Draft"::String), "isTerminal" .= False] ],
+              "transitions" .= ([]::[Value])
+              ]
+        resA <- request "POST" "/api/v1/workflows" ((mk "Content-Type", "application/json") : headersA) (encode wfReqA)
+        _ <- liftIO $ requireJust "Expected WfA" (decode (simpleBody resA) :: Maybe WorkflowDTO)
+
+        headersB <- authHeader "adminb@example.com" "password"
+        let wfReqB = object [
+              "name" .= ("WfB"::String),
+              "initialStateId" .= mkId 22,
+              "states" .= [ object ["id" .= mkId 22, "name" .= ("Draft"::String), "isTerminal" .= False] ],
+              "transitions" .= ([]::[Value])
+              ]
+        resB <- request "POST" "/api/v1/workflows" ((mk "Content-Type", "application/json") : headersB) (encode wfReqB)
+        _ <- liftIO $ requireJust "Expected WfB" (decode (simpleBody resB) :: Maybe WorkflowDTO)
+
+        listRespA <- request "GET" "/api/v1/workflows" headersA ""
+        listA <- liftIO $ requireJust "Expected list A" (decode (simpleBody listRespA) :: Maybe [WorkflowDTO])
+        liftIO $ length (filter (\w -> respWfName w == "WfA") listA) `shouldBe` 1
+        liftIO $ length (filter (\w -> respWfName w == "WfB") listA) `shouldBe` 0
+
+        listRespB <- request "GET" "/api/v1/workflows" headersB ""
+        listB <- liftIO $ requireJust "Expected list B" (decode (simpleBody listRespB) :: Maybe [WorkflowDTO])
+        liftIO $ length (filter (\w -> respWfName w == "WfB") listB) `shouldBe` 1
+        liftIO $ length (filter (\w -> respWfName w == "WfA") listB) `shouldBe` 0
+
+      it "lists instances with tenant isolation" $ do
+        headersA <- authHeader "admin@example.com" "password"
+
+        let wfReqA = object [
+              "name" .= ("WfInsts"::String),
+              "initialStateId" .= mkId 111,
+              "states" .= [ object ["id" .= mkId 111, "name" .= ("Draft"::String), "isTerminal" .= False] ],
+              "transitions" .= ([]::[Value])
+              ]
+        resA <- request "POST" "/api/v1/workflows" ((mk "Content-Type", "application/json") : headersA) (encode wfReqA)
+        wfA <- liftIO $ requireJust "Expected WfA" (decode (simpleBody resA) :: Maybe WorkflowDTO)
+
+        let actPath = B.append "/api/v1/workflows/" (B.append (fromString $ show $ respWfId wfA) "/activate")
+        _ <- request "POST" actPath headersA ""
+
+        let instPath = B.append "/api/v1/workflows/" (B.append (fromString $ show $ respWfId wfA) "/instances")
+        _ <- request "POST" instPath headersA ""
+        _ <- request "POST" instPath headersA ""
+
+        listInstsResp <- request "GET" instPath headersA ""
+        instsA <- liftIO $ requireJust "Expected insts A" (decode (simpleBody listInstsResp) :: Maybe [WorkflowInstanceDTO])
+        liftIO $ length instsA `shouldBe` 2
+
+        headersB <- authHeader "adminb@example.com" "password"
+        badListResp <- request "GET" instPath headersB ""
+        liftIO $ statusCode (simpleStatus badListResp) `shouldBe` 404
 
     describe "Workflow & Instances" $ do
       it "lifecycle works" $ do
@@ -177,7 +240,7 @@ spec = do
         res <- request "POST" "/api/v1/workflows" ((mk "Content-Type", "application/json") : headersA) (encode wfReq)
         liftIO $ statusCode (simpleStatus res) `shouldBe` 201
         wfDto <- liftIO $ requireJust "Expected WorkflowDTO" (decode (simpleBody res))
-        
+
         let actPath = B.append "/api/v1/workflows/" (B.append (fromString $ show $ respWfId wfDto) "/activate")
         request "POST" actPath headersA "" `shouldRespondWith` 200
 

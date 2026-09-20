@@ -9,12 +9,13 @@ import FlowForge.Infrastructure.Database (initDbPool)
 import Servant.Auth.Server (defaultJWTSettings, generateKey, fromSecret)
 
 import FlowForge.Config
-import FlowForge.Api.Server (app)
+import FlowForge.Api.Server (appWith)
+import FlowForge.Infrastructure.Repositories.Audit (auditRepository)
 
 main :: IO ()
 main = do
   config <- loadConfig
-  pool <- initDbPool (acDbConnString config)
+  pool <- initDbPool (B.unpack $ acDbConnString config)
 
   jwtKeyStr <- lookupEnv "JWT_SECRET"
   key <- case (acEnvironment config, jwtKeyStr) of
@@ -24,4 +25,4 @@ main = do
   let jwtSettings = defaultJWTSettings key
 
   putStrLn $ "Starting FlowForge server on port " ++ show (acServerPort config)
-  run (acServerPort config) (app pool jwtSettings)
+  run (acServerPort config) (appWith config pool jwtSettings auditRepository)

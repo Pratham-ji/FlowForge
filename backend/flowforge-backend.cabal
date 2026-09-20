@@ -78,7 +78,10 @@ executable flowforge-backend
     main-is:          Main.hs
     build-depends:
         base >= 4.18 && < 5,
-        flowforge-backend
+        flowforge-backend,
+        bytestring,
+        warp,
+        servant-auth-server
     hs-source-dirs:   app
     default-language: Haskell2010
 

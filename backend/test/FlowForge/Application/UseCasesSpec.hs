@@ -41,6 +41,9 @@ spec = do
                 case Map.lookup wfId db of
                   Just w -> if wOrgId w == o then return (Right w) else return (Left (TenantMismatch o (wOrgId w)))
                   Nothing -> return (Left (WorkflowNotFound wfId))
+            , listWorkflows = \o -> do
+                db <- readIORef wDb
+                return $ Right [w | w <- Map.elems db, wOrgId w == o]
             }
           iRepo = InstanceRepository
             { saveWorkflowInstance = \inst v -> do modifyIORef iDb (Map.insert (wiId inst) (inst, v)); return (Right ())
@@ -49,6 +52,9 @@ spec = do
                 case Map.lookup iId db of
                   Just (inst, v) -> if wiOrgId inst == o then return (Right (inst, v)) else return (Left (TenantMismatch o (wiOrgId inst)))
                   Nothing -> return (Left (WorkflowInstanceNotFound iId))
+            , listWorkflowInstances = \o wfId' -> do
+                db <- readIORef iDb
+                return $ Right [(inst, v) | (inst, v) <- Map.elems db, wiOrgId inst == o, wiWorkflowId inst == wfId']
             }
           aRepo = AuditRepository
             { appendAuditEvent = \e -> do modifyIORef aDb (e:); return (Right ())

@@ -38,9 +38,9 @@ newtype AuditEntryId       = AuditEntryId UUID
 ```haskell
 data Role = Admin | Manager | Member | Viewer
 
-data Permission 
-  = ManageOrganization | CreateWorkflow | ReadWorkflow 
-  | UpdateWorkflow | DeleteWorkflow | CreateInstance 
+data Permission
+  = ManageOrganization | CreateWorkflow | ReadWorkflow
+  | UpdateWorkflow | DeleteWorkflow | CreateInstance
   | ReadInstance | TransitionInstance | ReadAudit
 
 data WorkflowLifecycle = Draft | Active | Archived
@@ -50,9 +50,9 @@ data WorkflowLifecycle = Draft | Active | Archived
 The pure domain transitions a state and emits a conceptual `AuditEvent` describing what happened. Persistence-specific concerns (like wall-clock timestamps or DB-generated audit IDs) are injected by the Application/Infrastructure layer when saving.
 
 ```haskell
-transition 
+transition
   :: Workflow             -- ^ The definition containing states and rules
-  -> WorkflowInstance     -- ^ The current instance 
+  -> WorkflowInstance     -- ^ The current instance
   -> UserId               -- ^ The actor attempting the action
   -> Role                 -- ^ The actor's role
   -> WorkflowAction       -- ^ The requested action

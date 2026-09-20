@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: flowforge_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Map migration files to auto-run on initial database creation
+      - ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d flowforge_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ENV: development
+      PORT: 8080
+      DATABASE_URL: host=db dbname=flowforge_dev user=postgres password=postgrespassword port=5432
+      # Explicit frontend origin for CORS
+      CORS_ALLOWED_ORIGIN: http://localhost:5173
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # In a Compose setup, requests from the browser hit localhost:8080, so we point the frontend to it.
+        # Alternatively, we could proxy /api through the nginx config. We'll use absolute URL for simplicity here.
+        VITE_API_BASE_URL: http://localhost:8080/api/v1
+    ports:
+      - "5173:8080"
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  pgdata:

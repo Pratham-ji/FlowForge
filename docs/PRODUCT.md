@@ -1,7 +1,7 @@
 # FlowForge Product Definition
 
 ## 1. Product Vision
-FlowForge is a production-grade, typed workflow and business-process platform designed for multi-tenant SaaS environments. 
+FlowForge is a production-grade, typed workflow and business-process platform designed for multi-tenant SaaS environments.
 Organizations can define bespoke workflows, specify valid states and transitions, and create instances of those workflows. FlowForge enforces strict business rules, ensuring that workflow instances only move through valid transitions based on predefined roles and permissions, while maintaining an immutable audit history of all state changes.
 
 ### Core Features
@@ -43,6 +43,6 @@ FlowForge is a multi-tenant SaaS. The fundamental data isolation boundary is the
 ### Multi-Tenant Invariant
 A user must not be able to read, mutate, or transition any resource belonging to an organization they are not a member of.
 
-**Enforcement Boundary**: Multi-tenancy is an application and infrastructure concern. 
+**Enforcement Boundary**: Multi-tenancy is an application and infrastructure concern.
 - *Application Layer*: Use cases will explicitly check `OrganizationId` authorization.
 - *Infrastructure Layer*: Database queries will enforce tenant isolation (e.g., via `WHERE org_id = ?` or Row-Level Security). The pure domain layer receives pre-filtered, tenant-safe data.

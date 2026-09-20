@@ -1,6 +1,6 @@
 # FlowForge API Contract (v1)
 
-This document defines the HTTP API contract for FlowForge, serving as the boundary between the React frontend and the Haskell backend. 
+This document defines the HTTP API contract for FlowForge, serving as the boundary between the React frontend and the Haskell backend.
 
 ## 1. Authentication Model
 
@@ -88,6 +88,42 @@ Internal stack traces, SQL errors, and Haskell-specific exceptions are **never**
 
 ### 3.2 Workflows
 
+#### `GET /api/v1/workflows`
+- **User goal**: List all workflows belonging to the authenticated organization.
+- **Success**: Returns an array of workflow summaries (200 OK). Returns `[]` if no workflows exist.
+- **Failure**: Invalid/missing token returns 401 Unauthorized.
+- **Authorization**: Requires `ReadWorkflow` permission.
+- **Tenant**: Only workflows belonging to the authenticated organization are returned. The organization is derived exclusively from the JWT — no client-supplied org ID.
+- **Success criteria**: Tenant-scoped list with no cross-tenant data leakage.
+- **Response**:
+  ```json
+  [
+    {
+      "id": "uuid",
+      "organizationId": "uuid",
+      "name": "Purchase Order Approval",
+      "lifecycle": "Draft",
+      "initialStateId": "uuid",
+      "states": [
+        {
+          "id": "uuid",
+          "name": "Draft",
+          "isTerminal": false
+        }
+      ],
+      "transitions": [
+        {
+          "id": "uuid",
+          "sourceStateId": "uuid",
+          "targetStateId": "uuid",
+          "action": "Submit",
+          "requiredPermission": "TransitionInstance"
+        }
+      ]
+    }
+  ]
+  ```
+
 #### `POST /api/v1/workflows`
 - **User goal**: Create a new draft workflow defining states and transitions.
 - **Success**: Draft workflow is persisted and the new aggregate is returned (201 Created).
@@ -104,12 +140,12 @@ Internal stack traces, SQL errors, and Haskell-specific exceptions are **never**
       { "id": "uuid", "name": "Draft", "isTerminal": false }
     ],
     "transitions": [
-      { 
-        "id": "uuid", 
-        "sourceStateId": "uuid", 
-        "targetStateId": "uuid", 
-        "action": "Submit", 
-        "requiredPermission": "TransitionInstance" 
+      {
+        "id": "uuid",
+        "sourceStateId": "uuid",
+        "targetStateId": "uuid",
+        "action": "Submit",
+        "requiredPermission": "TransitionInstance"
       }
     ]
   }
@@ -140,6 +176,26 @@ Internal stack traces, SQL errors, and Haskell-specific exceptions are **never**
 - **Success criteria**: Prevents new instances while preserving existing historical instances.
 
 ### 3.3 Instances
+
+#### `GET /api/v1/workflows/:workflowId/instances`
+- **User goal**: List all instances of a specific workflow.
+- **Success**: Returns an array of instance summaries (200 OK). Returns `[]` if no instances exist.
+- **Failure**: Non-existent or cross-tenant workflow returns 404 Not Found.
+- **Authorization**: Requires `ReadInstance` permission.
+- **Tenant**: The workflow must belong to the authenticated organization. Instances are scoped to both the workflow and the organization at the SQL level.
+- **Success criteria**: Cross-tenant workflow IDs return 404 to prevent existence leakage.
+- **Response**:
+  ```json
+  [
+    {
+      "id": "uuid",
+      "workflowId": "uuid",
+      "currentStateId": "uuid",
+      "createdBy": "uuid",
+      "version": 1
+    }
+  ]
+  ```
 
 #### `POST /api/v1/workflows/:workflowId/instances`
 - **User goal**: Spawn a new instance of an active workflow.

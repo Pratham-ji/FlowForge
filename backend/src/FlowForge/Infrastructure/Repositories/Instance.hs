@@ -37,7 +37,7 @@ instanceRepository = InstanceRepository
       conn <- ask
       if version == 1 then do
         -- Insert new
-        res <- liftIO $ try $ execute conn 
+        res <- liftIO $ try $ execute conn
           "INSERT INTO workflow_instances (id, workflow_id, organization_id, current_state_id, created_by, version) \
           \VALUES (?, ?, ?, ?, ?, ?)"
           ( mapInstId (wiId inst)
@@ -52,7 +52,7 @@ instanceRepository = InstanceRepository
           Right _ -> return $ Right ()
       else do
         -- Update existing with optimistic concurrency
-        res <- liftIO $ try $ execute conn 
+        res <- liftIO $ try $ execute conn
           "UPDATE workflow_instances \
           \SET current_state_id = ?, version = ?, updated_at = NOW() \
           \WHERE id = ? AND version = ?"
@@ -63,8 +63,8 @@ instanceRepository = InstanceRepository
           )
         case res of
           Left err -> return $ Left $ PersistenceFailure (show (err :: SomeException))
-          Right affected -> 
-            if (affected :: Int64) == 0 
+          Right affected ->
+            if (affected :: Int64) == 0
               then return $ Left $ ConcurrencyConflict (wiId inst)
               else return $ Right ()
 
@@ -78,7 +78,7 @@ instanceRepository = InstanceRepository
       case res of
         Left err -> return $ Left $ PersistenceFailure (show (err :: SomeException))
         Right [] -> return $ Left $ WorkflowInstanceNotFound instId
-        Right [(wIdU, stU, crU, v)] -> return $ Right 
+        Right [(wIdU, stU, crU, v)] -> return $ Right
           ( WorkflowInstance
               { wiId = instId
               , wiWorkflowId = WorkflowId wIdU
@@ -89,4 +89,23 @@ instanceRepository = InstanceRepository
           , v
           )
         Right _ -> return $ Left $ PersistenceFailure "Multiple instances returned for one ID"
+  , listWorkflowInstances = \orgId wfId -> do
+      conn <- ask
+      res <- liftIO $ try $ query conn
+        "SELECT id, current_state_id, created_by, version \
+        \FROM workflow_instances \
+        \WHERE workflow_id = ? AND organization_id = ?"
+        (mapWfId wfId, mapOrgId orgId)
+      case res of
+        Left err -> return $ Left $ PersistenceFailure (show (err :: SomeException))
+        Right rows -> return $ Right $ map (\(idU, stU, crU, v) ->
+          ( WorkflowInstance
+              { wiId = WorkflowInstanceId idU
+              , wiWorkflowId = wfId
+              , wiOrgId = orgId
+              , wiCurrentStateId = WorkflowStateId stU
+              , wiCreatedBy = UserId crU
+              }
+          , v
+          )) rows
   }

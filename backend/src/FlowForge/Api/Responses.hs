@@ -38,6 +38,16 @@ customOptions = defaultOptions { fieldLabelModifier = renameId }
     renameId "respInstState" = "currentStateId"
     renameId "respInstCreatedBy" = "createdBy"
     renameId "respInstVersion" = "version"
+    renameId "respStateId" = "id"
+    renameId "respStateName" = "name"
+    renameId "respStateIsTerminal" = "isTerminal"
+    renameId "respTransId" = "id"
+    renameId "respTransSourceStateId" = "sourceStateId"
+    renameId "respTransTargetStateId" = "targetStateId"
+    renameId "respTransAction" = "action"
+    renameId "respTransReqPerm" = "requiredPermission"
+    renameId "respWfStates" = "states"
+    renameId "respWfTransitions" = "transitions"
     renameId other = other
 
 data UserDTO = UserDTO
@@ -57,12 +67,34 @@ instance ToJSON AuthResponse
 instance FromJSON AuthResponse
 instance ToSchema AuthResponse
 
+data WorkflowStateDTO = WorkflowStateDTO
+  { respStateId :: UUID
+  , respStateName :: Text
+  , respStateIsTerminal :: Bool
+  } deriving (Show, Generic)
+instance ToJSON WorkflowStateDTO where toJSON = genericToJSON customOptions
+instance FromJSON WorkflowStateDTO where parseJSON = genericParseJSON customOptions
+instance ToSchema WorkflowStateDTO
+
+data WorkflowTransitionDTO = WorkflowTransitionDTO
+  { respTransId :: UUID
+  , respTransSourceStateId :: UUID
+  , respTransTargetStateId :: UUID
+  , respTransAction :: Text
+  , respTransReqPerm :: Text
+  } deriving (Show, Generic)
+instance ToJSON WorkflowTransitionDTO where toJSON = genericToJSON customOptions
+instance FromJSON WorkflowTransitionDTO where parseJSON = genericParseJSON customOptions
+instance ToSchema WorkflowTransitionDTO
+
 data WorkflowDTO = WorkflowDTO
   { respWfId :: UUID
   , respWfOrgId :: UUID
   , respWfName :: Text
   , respWfLifecycle :: Text
   , respWfInitState :: UUID
+  , respWfStates :: [WorkflowStateDTO]
+  , respWfTransitions :: [WorkflowTransitionDTO]
   } deriving (Show, Generic)
 instance ToJSON WorkflowDTO where toJSON = genericToJSON customOptions
 instance FromJSON WorkflowDTO where parseJSON = genericParseJSON customOptions
@@ -78,7 +110,22 @@ fromDomainWorkflow w = WorkflowDTO
       Active -> "Active"
       Archived -> "Archived"
   , respWfInitState = unWorkflowStateId (wInitialStateId w)
+  , respWfStates = map mapState (wStates w)
+  , respWfTransitions = map mapTrans (wTransitions w)
   }
+  where
+    mapState s = WorkflowStateDTO
+      { respStateId = unWorkflowStateId (wsId s)
+      , respStateName = wsName s
+      , respStateIsTerminal = wsIsTerminal s
+      }
+    mapTrans t = WorkflowTransitionDTO
+      { respTransId = unTransitionId (wtId t)
+      , respTransSourceStateId = unWorkflowStateId (wtSourceStateId t)
+      , respTransTargetStateId = unWorkflowStateId (wtTargetStateId t)
+      , respTransAction = unWorkflowAction (wtAction t)
+      , respTransReqPerm = renderPermission (wtRequiredPermission t)
+      }
 
 data WorkflowInstanceDTO = WorkflowInstanceDTO
   { respInstId :: UUID
@@ -135,3 +182,17 @@ unUserId (UserId i) = i
 
 unWorkflowAction :: WorkflowAction -> Text
 unWorkflowAction (WorkflowAction a) = a
+
+unTransitionId :: TransitionId -> UUID
+unTransitionId (TransitionId i) = i
+
+renderPermission :: Permission -> Text
+renderPermission ManageOrganization = "ManageOrganization"
+renderPermission CreateWorkflow = "CreateWorkflow"
+renderPermission ReadWorkflow = "ReadWorkflow"
+renderPermission UpdateWorkflow = "UpdateWorkflow"
+renderPermission DeleteWorkflow = "DeleteWorkflow"
+renderPermission CreateInstance = "CreateInstance"
+renderPermission ReadInstance = "ReadInstance"
+renderPermission TransitionInstance = "TransitionInstance"
+renderPermission ReadAudit = "ReadAudit"

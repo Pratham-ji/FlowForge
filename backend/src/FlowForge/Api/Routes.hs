@@ -20,11 +20,13 @@ import FlowForge.Api.Requests
 import FlowForge.Api.Responses
 
 type WorkflowsApi = 
-       "workflows" :> ReqBody '[JSON] CreateWorkflowRequest :> PostCreated '[JSON] WorkflowDTO
+       "workflows" :> Get '[JSON] [WorkflowDTO]
+  :<|> "workflows" :> ReqBody '[JSON] CreateWorkflowRequest :> PostCreated '[JSON] WorkflowDTO
   :<|> "workflows" :> Capture "workflowId" UUID :> Get '[JSON] WorkflowDTO
   :<|> "workflows" :> Capture "workflowId" UUID :> "activate" :> Post '[JSON] WorkflowDTO
   :<|> "workflows" :> Capture "workflowId" UUID :> "archive" :> Post '[JSON] WorkflowDTO
   :<|> "workflows" :> Capture "workflowId" UUID :> "instances" :> PostCreated '[JSON] WorkflowInstanceDTO
+  :<|> "workflows" :> Capture "workflowId" UUID :> "instances" :> Get '[JSON] [WorkflowInstanceDTO]
 
 type InstancesApi =
        "instances" :> Capture "instanceId" UUID :> Get '[JSON] WorkflowInstanceDTO
@@ -37,7 +39,9 @@ type InstancesApi =
 -- Wait, if Login is in both, that's duplicative or we can structure it so Auth is checked optionally, or just strict.
 -- A cleaner way:
 type FlowForgeAPI = "api" :> "v1" :> 
-  (    "auth" :> "login" :> ReqBody '[JSON] LoginRequest :> Post '[JSON] AuthResponse
+  (    "health" :> Get '[JSON] String
+  :<|> "ready"  :> Get '[JSON] String
+  :<|> "auth" :> "login" :> ReqBody '[JSON] LoginRequest :> Post '[JSON] AuthResponse
   :<|> Auth '[JWT] AuthenticatedUser :> "me" :> Get '[JSON] UserDTO
   :<|> Auth '[JWT] AuthenticatedUser :> WorkflowsApi
   :<|> Auth '[JWT] AuthenticatedUser :> InstancesApi

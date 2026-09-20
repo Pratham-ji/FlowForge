@@ -17,11 +17,13 @@ import FlowForge.Application.Error
 data WorkflowRepository m = WorkflowRepository
   { saveWorkflow :: Workflow -> m (Either AppError ())
   , getWorkflow  :: OrganizationId -> WorkflowId -> m (Either AppError Workflow)
+  , listWorkflows :: OrganizationId -> m (Either AppError [Workflow])
   }
 
 data InstanceRepository m = InstanceRepository
   { saveWorkflowInstance :: WorkflowInstance -> Int -> m (Either AppError ())
   , getWorkflowInstance  :: OrganizationId -> WorkflowInstanceId -> m (Either AppError (WorkflowInstance, Int))
+  , listWorkflowInstances :: OrganizationId -> WorkflowId -> m (Either AppError [(WorkflowInstance, Int)])
   }
 
 data AuditRepository m = AuditRepository

@@ -1,5 +1,27 @@
-# Haskell / Cabal
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs
+*.log
+
+# Haskell / Backend
 dist-newstyle/
+dist/
 cabal.project.local
 cabal.project.local~
 *.hi
@@ -12,37 +34,24 @@ cabal.project.local~
 .hpc/
 .ghc.environment.*
 
-# GHCup
-.ghcup/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
 # Node / Frontend
 node_modules/
-frontend/dist/
-frontend/.env
-frontend/.env.local
-
-# Environment
-.env
-.env.local
-.env.production
-
-# OS
-.DS_Store
-Thumbs.db
+dist/
+build/
+coverage/
 
 # Docker
 docker-compose.override.yml
 
-# Logs
-*.log
-
-# Secrets — NEVER commit
-*.pem
-*.key
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

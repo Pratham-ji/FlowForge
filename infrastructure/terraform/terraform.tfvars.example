@@ -1,0 +1,16 @@
+# FlowForge Terraform Configuration - Example
+# Copy this file to terraform.tfvars and fill in the values.
+# NEVER commit terraform.tfvars to version control.
+
+location          = "eastus"
+environment       = "dev"
+app_name          = "flowforge"
+
+# Replace with strong, randomly generated secrets
+pg_admin_username = "pgadmin"
+pg_admin_password = "CHANGE_ME_TO_A_STRONG_PASSWORD"
+jwt_secret        = "CHANGE_ME_TO_A_256_BIT_SECRET"
+
+# These will initially use helloworld images, but once built, you update them:
+# backend_image = "crflowforgedev.azurecr.io/flowforge/backend:latest"
+# frontend_image = "crflowforgedev.azurecr.io/flowforge/frontend:latest"

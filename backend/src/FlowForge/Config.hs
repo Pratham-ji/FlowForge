@@ -2,6 +2,7 @@
 
 module FlowForge.Config
   ( AppConfig(..)
+  , Environment(..)
   , loadConfig
   ) where
 
@@ -14,6 +15,7 @@ data AppConfig = AppConfig
   { acDbConnString :: B.ByteString
   , acServerPort   :: Int
   , acEnvironment  :: Environment
+  , acCorsOrigin   :: Maybe B.ByteString
   } deriving (Show)
 
 loadConfig :: IO AppConfig
@@ -21,6 +23,7 @@ loadConfig = do
   envStr <- lookupEnv "ENV"
   dbStr <- lookupEnv "DATABASE_URL"
   portStr <- lookupEnv "PORT"
+  corsStr <- lookupEnv "CORS_ALLOWED_ORIGIN"
   
   let env = if envStr == Just "production" then Production else Development
   
@@ -33,4 +36,5 @@ loadConfig = do
     { acDbConnString = connStr
     , acServerPort   = maybe 8080 read portStr
     , acEnvironment  = env
+    , acCorsOrigin   = fmap B.pack corsStr
     }
