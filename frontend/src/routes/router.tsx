@@ -1,4 +1,5 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { LandingPage } from '../pages/LandingPage';
+import { createBrowserRouter } from 'react-router-dom';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { AppLayout } from '../layouts/AppLayout';
 import { ProtectedRoute } from './ProtectedRoute';
@@ -16,7 +17,7 @@ import { OrganizationSettings } from '../features/organizations/OrganizationSett
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <Navigate to="/app" replace />,
+    element: <LandingPage />,
   },
   {
     element: <AuthLayout />,
