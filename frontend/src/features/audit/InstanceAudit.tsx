@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as api from '../../api/client';
 import { AppError } from '../../api/errors';
@@ -16,7 +16,7 @@ export function InstanceAudit() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!instanceId) return;
     setIsLoading(true);
     setError(null);
@@ -45,7 +45,7 @@ export function InstanceAudit() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [instanceId]);
 
   useEffect(() => {
     loadData();

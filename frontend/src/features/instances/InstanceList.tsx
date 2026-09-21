@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import * as api from '../../api/client';
 import { AppError } from '../../api/errors';
@@ -22,7 +22,7 @@ export function InstanceList() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!workflowId) return;
     setIsLoading(true);
     setError(null);
@@ -47,7 +47,7 @@ export function InstanceList() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [workflowId]);
 
   useEffect(() => {
     loadData();

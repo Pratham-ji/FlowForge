@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as api from '../../api/client';
 import { AppError } from '../../api/errors';
@@ -22,7 +22,7 @@ export function InstanceDetail() {
   const [isTransitioning, setIsTransitioning] = useState<string | null>(null);
   const [conflictError, setConflictError] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!instanceId) return;
     setIsLoading(true);
     setError(null);
@@ -47,7 +47,7 @@ export function InstanceDetail() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [instanceId]);
 
   useEffect(() => {
     loadData();
