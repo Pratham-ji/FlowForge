@@ -55,6 +55,7 @@ type FlowForgeAPI = "api" :> "v1" :>
   (    "health" :> Get '[JSON] String
   :<|> "ready"  :> Get '[JSON] String
   :<|> "auth" :> "login" :> ReqBody '[JSON] LoginRequest :> Post '[JSON] AuthResponse
+  :<|> "auth" :> "register" :> ReqBody '[JSON] RegisterRequest :> Post '[JSON] AuthResponse
   :<|> Auth '[JWT] AuthenticatedUser :> "me" :> Get '[JSON] UserDTO
   :<|> Auth '[JWT] AuthenticatedUser :> Header "X-Organization-Id" UUID :> WorkflowsApi
   :<|> Auth '[JWT] AuthenticatedUser :> Header "X-Organization-Id" UUID :> InstancesApi

@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
-export function LoginForm() {
+export function RegisterForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const { login, error } = useAuth();
+  const { register, error } = useAuth();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,10 +29,14 @@ export function LoginForm() {
       setValidationError('Password must be at least 6 characters long.');
       return;
     }
+    if (password !== confirmPassword) {
+      setValidationError('Passwords do not match.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      await login(email, password);
+      await register(email, password);
       navigate(from, { replace: true });
     } catch {
       // Error is handled and surfaced by AuthContext
@@ -46,8 +52,8 @@ export function LoginForm() {
 
       <div className="relative bg-[#0d0d0d] border border-white/10 p-8 sm:p-10 rounded-[2rem] shadow-2xl backdrop-blur-xl">
         <div className="mb-8 text-center">
-          <h2 className="text-2xl font-bold tracking-tight mb-2">Welcome back</h2>
-          <p className="text-sm text-gray-400">Sign in to your FlowForge account</p>
+          <h2 className="text-2xl font-bold tracking-tight mb-2">Create your FlowForge account</h2>
+          <p className="text-sm text-gray-400">Start building reliable workflows</p>
         </div>
 
         <form noValidate onSubmit={handleSubmit} className="space-y-6">
@@ -57,6 +63,20 @@ export function LoginForm() {
               <span>{validationError || error}</span>
             </div>
           )}
+
+          <div className="space-y-2">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-300">Full name</label>
+            <input
+              id="name"
+              type="text"
+              autoComplete="name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+              placeholder="Jane Doe"
+            />
+          </div>
 
           <div className="space-y-2">
             <label htmlFor="email" className="block text-sm font-medium text-gray-300">Email address</label>
@@ -80,10 +100,24 @@ export function LoginForm() {
             <input
               id="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">Confirm password</label>
+            <input
+              id="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
               placeholder="••••••••"
             />
@@ -100,15 +134,15 @@ export function LoginForm() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                 </svg>
-                Signing in...
+                Creating account...
               </>
             ) : (
-              'Sign in'
+              'Create account'
             )}
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-gray-500">Don't have an account? <a href="/register" className="text-primary-400 hover:text-primary-300">Create one</a></p>
+        <p className="mt-8 text-center text-sm text-gray-500">Already have an account? <a href="/login" className="text-primary-400 hover:text-primary-300">Sign in</a></p>
       </div>
     </div>
   );

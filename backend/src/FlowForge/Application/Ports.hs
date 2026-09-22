@@ -33,6 +33,7 @@ data AuditRepository m = AuditRepository
 
 data UserRepository m = UserRepository
   { getUserByEmail :: Text -> m (Either AppError (User, Text))
+  , registerUser :: Text -> Text -> m (Either AppError UserId)
   , getUserById :: UserId -> m (Either AppError User)
   , saveUser :: User -> m (Either AppError ())
   , getOrganizationMembership :: OrganizationId -> UserId -> m (Either AppError Role)

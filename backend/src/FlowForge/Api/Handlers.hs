@@ -35,7 +35,7 @@ import FlowForge.Infrastructure.Database (SqlM)
 import FlowForge.Infrastructure.Transaction (transactionPort)
 import FlowForge.Infrastructure.Repositories.User (userRepository)
 import FlowForge.Application.Ports
-import FlowForge.Infrastructure.Auth.Password (passwordVerifier)
+import FlowForge.Infrastructure.Auth.Password (passwordVerifier, hashPasswordIO)
 import FlowForge.Infrastructure.Repositories.Workflow (workflowRepository)
 import FlowForge.Infrastructure.Repositories.Instance (instanceRepository)
 import FlowForge.Api.Env (AppEnv(..))
@@ -46,6 +46,7 @@ server :: JWTSettings -> ServerT RootAPI AppHandler
 server jwtSettings = (return "OK"
                 :<|> readyHandler
                 :<|> loginHandler jwtSettings
+                :<|> registerHandler jwtSettings
                 :<|> meHandler
                 :<|> workflowsServer
                 :<|> instancesServer
@@ -84,6 +85,24 @@ runUc ctx action = do
 loginHandler :: JWTSettings -> LoginRequest -> AppHandler AuthResponse
 loginHandler jwtSettings req = do
   u <- runUc "authenticateUserUC" $ authenticateUserUC userRepository passwordVerifier (FlowForge.Api.Requests.email req) (FlowForge.Api.Requests.password req)
+  let authUser = AuthenticatedUser
+        { auUserId = let (UserId uid) = uId u in uid
+        }
+  tokenE <- liftIO $ do
+    now <- liftIO getCurrentTime
+    let expiry = Just (addUTCTime 7200 now)
+    liftIO $ makeJWT authUser jwtSettings expiry
+  case tokenE of
+    Left _ -> throwError err500
+    Right t -> return $ AuthResponse
+      { token = TE.decodeUtf8 (BL.toStrict t)
+      , user = UserDTO (auUserId authUser)
+      }
+
+
+registerHandler :: JWTSettings -> RegisterRequest -> AppHandler AuthResponse
+registerHandler jwtSettings req = do
+  u <- runUc "registerUserUC" $ registerUserUC userRepository (\t -> liftIO (hashPasswordIO t)) (regEmail req) (regPassword req)
   let authUser = AuthenticatedUser
         { auUserId = let (UserId uid) = uId u in uid
         }

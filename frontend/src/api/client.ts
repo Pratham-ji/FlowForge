@@ -70,7 +70,9 @@ async function request<T>(
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    const cleanBase = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    response = await fetch(`${cleanBase}${cleanPath}`, {
       ...options,
       headers,
     });
@@ -93,13 +95,25 @@ async function request<T>(
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  try {
+    return await response.json() as T;
+  } catch (err) {
+    console.error('Failed to parse JSON response. Did the server return HTML?', err);
+    throw new AppError('PARSE_ERROR', 'Received an invalid response format from the server.', response.status);
+  }
 }
 
 // --- Auth ---
 
 export async function login(req: LoginRequest): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  });
+}
+
+export async function register(req: LoginRequest): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/register', {
     method: 'POST',
     body: JSON.stringify(req),
   });

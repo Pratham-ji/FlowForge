@@ -2,6 +2,7 @@
 
 module FlowForge.Application.UseCases.Auth
   ( authenticateUserUC
+  , registerUserUC
   ) where
 
 import Control.Monad.Except
@@ -25,3 +26,15 @@ authenticateUserUC uRepo pVerifier email password = runExceptT $ do
   if isValid
     then return user
     else throwError InvalidCredentials
+
+registerUserUC
+  :: Monad m
+  => UserRepository m
+  -> (Text -> m Text)
+  -> Text
+  -> Text
+  -> m (Either AppError User)
+registerUserUC uRepo hashFn email password = runExceptT $ do
+  hashTxt <- lift $ hashFn password
+  uid <- ExceptT $ registerUser uRepo email hashTxt
+  return $ User uid

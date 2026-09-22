@@ -3,6 +3,7 @@
 
 module FlowForge.Api.Requests
   ( LoginRequest(..)
+  , RegisterRequest(..)
   , CreateWorkflowRequest(..)
   , StateDefinitionDTO(..)
   , TransitionDefinitionDTO(..)
@@ -183,3 +184,26 @@ instance ToSchema CreateOrganizationRequest where
           & at "orgNameReq" .~ Nothing
       )
     & mapped.schema.required %~ (\reqs -> filter (/= "orgNameReq") reqs ++ ["name"])
+
+data RegisterRequest = RegisterRequest
+  { regEmail :: Text
+  , regPassword :: Text
+  } deriving (Show, Generic)
+
+instance FromJSON RegisterRequest where
+  parseJSON = genericParseJSON (defaultOptions { fieldLabelModifier = renameId })
+    where
+      renameId "regEmail" = "email"
+      renameId "regPassword" = "password"
+      renameId x = x
+
+instance ToSchema RegisterRequest where
+  declareNamedSchema proxy = genericDeclareNamedSchema defaultSchemaOptions proxy
+    & mapped.schema.properties %~
+      ( \props -> props
+          & at "email" .~ (props ^. at "regEmail")
+          & at "regEmail" .~ Nothing
+          & at "password" .~ (props ^. at "regPassword")
+          & at "regPassword" .~ Nothing
+      )
+    & mapped.schema.required %~ (\reqs -> filter (/= "regEmail") (filter (/= "regPassword") reqs) ++ ["email", "password"])

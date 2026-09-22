@@ -24,7 +24,21 @@ toDomainRoleText Viewer = "Viewer"
 
 userRepository :: UserRepository SqlM
 userRepository = UserRepository
-  { getUserByEmail = \email -> do
+  { registerUser = \email hashTxt -> do
+      conn <- ask
+      res <- liftIO $ try $ query conn
+        "INSERT INTO users (id, email, password_hash) VALUES (gen_random_uuid(), ?, ?) RETURNING id"
+        (email, hashTxt)
+      case res of
+        Left (e :: SqlError) -> do
+          let msg = show e
+          if "unique constraint" `T.isInfixOf` T.toLower (T.pack msg)
+            then return $ Left $ BusinessRuleViolation "Email already exists"
+            else return $ Left $ PersistenceFailure msg
+        Right [Only uid] -> return $ Right (UserId uid)
+        Right _ -> return $ Left $ PersistenceFailure "Failed to create user"
+
+  , getUserByEmail = \email -> do
       conn <- ask
       res <- liftIO $ try $ query conn
         "SELECT id, password_hash FROM users WHERE email = ?"

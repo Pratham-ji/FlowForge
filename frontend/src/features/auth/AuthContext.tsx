@@ -12,6 +12,7 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
   logout: () => void;
   error: string | null;
 }
@@ -126,6 +127,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const register = useCallback(async (email: string, password: string) => {
+    setError(null);
+    try {
+      const res = await api.register({ email, password });
+      api.setStoredToken(res.token);
+
+      const u = await api.getMe();
+      setUser(u);
+
+      let orgs = await api.listOrganizations();
+      if (orgs.length === 0) {
+        await api.createOrganization("My Workspace");
+        orgs = await api.listOrganizations();
+      }
+      setOrganizations(orgs);
+      if (orgs.length > 0) {
+        const targetOrg = orgs[0];
+        setCurrentOrg(targetOrg);
+        api.setStoredOrganization(targetOrg.id);
+        await resolveRole(targetOrg.id, u);
+      }
+    } catch (err) {
+      setError('Registration failed. The email might already be in use.');
+      throw err;
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -137,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: user !== null,
         login,
+        register,
         logout,
         error,
       }}
