@@ -1,5 +1,5 @@
 # Stage 1: Build the Haskell executable
-FROM haskell:9.6 AS builder
+FROM haskell:9.10.3-bookworm AS builder
 
 WORKDIR /opt/build
 
@@ -17,13 +17,13 @@ RUN cabal build --only-dependencies -j4
 COPY . .
 
 # Build the executable
-RUN cabal build -j4
+RUN cabal build -j4 --ghc-options=-threaded
 
 # Extract the binary to a known location
 RUN cp $(cabal list-bin exe:flowforge-backend) /opt/build/flowforge-backend
 
 # Stage 2: Create the lightweight runtime image
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 # Install runtime dependencies (libpq5 for PostgreSQL client library, libgmp10 for Haskell RTS)
 RUN apt-get update && \
