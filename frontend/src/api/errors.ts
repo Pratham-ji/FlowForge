@@ -60,25 +60,32 @@ export async function normalizeError(response: Response): Promise<AppError> {
       message = JSON.stringify(body);
     }
   } catch {
-    if (response.status === 404) message = 'The requested resource could not be found.';
-    else if (response.status === 403) message = "You don't have permission to perform this action.";
+    if (response.status === 404) message = 'This resource no longer exists.';
+    else if (response.status === 403) message = "You don't have permission to do that.";
     else if (response.status === 401) message = 'Your session has expired. Please log in again.';
-    else if (response.status === 409) message = 'This workflow was changed by someone else. Refresh to load the latest version.';
+    else if (response.status === 409) message = 'This workflow changed while you were editing it. Reload the latest version.';
     else if (response.status >= 500) message = 'We encountered an internal server error. Please try again.';
-    else if (response.status === 400) message = 'The request was invalid or the workspace could not be loaded.';
+    else if (response.status === 400) message = 'Your workspace could not be loaded.';
+    else if (response.status === 422) message = 'Please complete the required fields.';
     else if (!response.status) message = "We couldn't reach FlowForge. Check your connection and try again.";
     else message = response.statusText || `HTTP ${response.status}`;
   }
 
   // Overwrite generic backend messages if they are not user friendly
   if (message.includes('HTTP 400') || message.includes('Bad Request')) {
-    message = 'Your workspace could not be loaded. Please refresh and try again.';
+    message = 'Your workspace could not be loaded.';
   }
   if (response.status === 409) {
-    message = 'This resource was changed by someone else. Refresh to load the latest version.';
+    message = 'This workflow changed while you were editing it. Reload the latest version.';
   }
   if (response.status === 403) {
-    message = "You don't have permission to perform this action.";
+    message = "You don't have permission to do that.";
+  }
+  if (response.status === 404) {
+    message = "This resource no longer exists.";
+  }
+  if (response.status === 422) {
+    message = "Please complete the required fields.";
   }
 
   return new AppError(code, message, response.status);

@@ -3,22 +3,23 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext';
 
 export function AppLayout() {
-  const { user, logout, currentRole, currentWorkspace, workspaces, setCurrentWorkspaceId } = useAuth();
+  const { logout, currentRole, currentWorkspace, workspaces, setCurrentWorkspaceId } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navigation = [
-    { name: 'Dashboard', href: '/app', end: true },
+    { name: 'Overview', href: '/app', end: true },
     { name: 'Workflows', href: '/app/workflows' },
   ];
+
   if (currentRole === 'Admin') {
-    navigation.push({ name: 'Settings', href: '/app/settings' });
+    navigation.push({ name: 'Team & Settings', href: '/app/settings' });
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3">
-        <span className="text-xl font-bold text-gray-900">FlowForge</span>
+        <span className="text-xl font-bold text-gray-900 tracking-tight">FlowForge</span>
         <button
           type="button"
           className="text-gray-500 hover:text-gray-900 focus:outline-none"
@@ -40,21 +41,20 @@ export function AppLayout() {
       <nav
         className={`${
           mobileMenuOpen ? 'block' : 'hidden'
-        } md:block md:w-64 flex-shrink-0 bg-white border-r border-gray-200`}
+        } md:block md:w-64 flex-shrink-0 bg-white border-r border-gray-200 shadow-sm z-10`}
       >
         <div className="h-full flex flex-col">
-          <div className="hidden md:flex items-center px-6 py-5 border-b border-gray-200">
+          <div className="hidden md:flex items-center px-6 py-6 border-b border-gray-200">
             <span className="text-2xl font-bold text-gray-900 tracking-tight">FlowForge</span>
           </div>
 
-
-          <div className="px-4 py-4 border-b border-gray-200">
-            <label htmlFor="org-switcher" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Organization
+          <div className="px-4 py-5 border-b border-gray-200 bg-gray-50/50">
+            <label htmlFor="workspace-switcher" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Workspace
             </label>
             <select
-              id="org-switcher"
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+              id="workspace-switcher"
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 rounded-md shadow-sm bg-white"
               value={currentWorkspace?.id || ''}
               onChange={(e) => setCurrentWorkspaceId(e.target.value)}
             >
@@ -65,6 +65,7 @@ export function AppLayout() {
               ))}
             </select>
           </div>
+
           <div className="flex-1 overflow-y-auto py-4">
             <ul className="space-y-1 px-3">
               {navigation.map((item) => (
@@ -73,10 +74,10 @@ export function AppLayout() {
                     to={item.href}
                     end={item.end}
                     className={({ isActive }) =>
-                      `block px-3 py-2 rounded-md text-sm font-medium ${
+                      `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                         isActive
                           ? 'bg-primary-50 text-primary-700'
-                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                       }`
                     }
                     onClick={() => setMobileMenuOpen(false)}
@@ -88,18 +89,10 @@ export function AppLayout() {
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center">
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700">Logged in as</p>
-                <p className="text-xs font-medium text-gray-500 truncate" title={user?.id}>
-                  User ID: {user?.id?.substring(0,8) || ""}...
-                </p>
-              </div>
-            </div>
+          <div className="p-4 border-t border-gray-200 bg-gray-50/50">
             <button
               onClick={() => logout()}
-              className="mt-4 w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full text-left px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 hover:text-gray-900 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               Sign out
             </button>
@@ -109,7 +102,7 @@ export function AppLayout() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto focus:outline-none bg-gray-50">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <Outlet />
         </div>
       </main>

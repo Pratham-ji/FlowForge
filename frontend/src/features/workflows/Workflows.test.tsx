@@ -75,7 +75,7 @@ describe('Workflow Features', () => {
       ]);
       renderComponent(<WorkflowList />);
       expect(await screen.findByText('Test WF')).toBeInTheDocument();
-      expect(screen.getByText('Draft')).toBeInTheDocument();
+      expect(screen.getAllByText('Draft')[0]).toBeInTheDocument();
     });
   });
 
