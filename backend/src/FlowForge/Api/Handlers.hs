@@ -158,19 +158,19 @@ organizationsServer authResult = listOrgs :<|> createOrg :<|> getOrg :<|> member
     listMembers oidUUID = do
       (uid, oid, role) <- requireMembership authResult (Just oidUUID)
       members <- runUc "listOrganizationMembers" $ listOrganizationMembers userRepository oid
-      return $ map (\m -> OrganizationMemberDTO (let (UserId muid) = omUserId m in muid) (fromDomainRole (omRole m))) members
+      return $ map (\m -> OrganizationMemberDTO (let (UserId muid) = omUserId m in muid) (fromDomainRole (omRole m)) (omEmail m)) members
 
     addMember oidUUID req = do
       (uid, oid, role) <- requireMembership authResult (Just oidUUID)
       let targetRole = toDomainRole (reqRole (req :: AddMemberRequest))
       m <- runUc "addOrganizationMemberUC" $ addOrganizationMemberUC userRepository oid uid role (UserId $ reqUserId req) targetRole
-      return $ OrganizationMemberDTO (let (UserId muid) = omUserId m in muid) (fromDomainRole (omRole m))
+      return $ OrganizationMemberDTO (let (UserId muid) = omUserId m in muid) (fromDomainRole (omRole m)) (omEmail m)
 
     changeRole oidUUID targetIdUUID req = do
       (uid, oid, role) <- requireMembership authResult (Just oidUUID)
       let targetRole = toDomainRole (reqNewRole (req :: ChangeRoleRequest))
       m <- runUc "updateOrganizationMemberRoleUC" $ updateOrganizationMemberRoleUC userRepository oid uid role (UserId targetIdUUID) targetRole
-      return $ OrganizationMemberDTO (let (UserId muid) = omUserId m in muid) (fromDomainRole (omRole m))
+      return $ OrganizationMemberDTO (let (UserId muid) = omUserId m in muid) (fromDomainRole (omRole m)) (omEmail m)
 
     removeMember oidUUID targetIdUUID = do
       (uid, oid, role) <- requireMembership authResult (Just oidUUID)

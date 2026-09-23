@@ -59,8 +59,11 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // Do not add org context to auth or org routes
-  if (org && !path.startsWith('/auth') && path !== '/me' && !path.startsWith('/organizations')) {
+  const requiresOrg = !path.startsWith('/auth') && path !== '/me' && !path.startsWith('/organizations');
+  if (requiresOrg) {
+    if (!org) {
+      throw new AppError('NO_WORKSPACE', 'Workspace context is required.', 400);
+    }
     headers['X-Organization-Id'] = org;
   }
 
@@ -78,7 +81,7 @@ async function request<T>(
     });
   } catch (err) {
     console.error(`[Network Error] ${options.method || 'GET'} ${path}`, err);
-    throw new AppError('NETWORK_ERROR', 'Failed to connect to the server.', 0);
+    throw new AppError('NETWORK_ERROR', "We couldn't reach FlowForge. Check your connection and try again.", 0);
   }
 
   if (!response.ok) {
@@ -186,8 +189,10 @@ export interface OrganizationDTO {
 export interface OrganizationMemberDTO {
   userId: string;
   role: string;
+  email?: string;
 }
-export async function listOrganizationMembers(orgId: string): Promise<OrganizationMemberDTO[]> {
+export async function listOrganizationMembers(orgId: string): Promise<OrganizationMemberDTO[]>  {
+  if (!orgId) throw new AppError('NO_WORKSPACE', 'Workspace context is required.', 400);
   return request<OrganizationMemberDTO[]>(`/organizations/${orgId}/members`);
 }
 export async function listOrganizations(): Promise<OrganizationDTO[]> {
@@ -200,21 +205,24 @@ export async function createOrganization(name: string): Promise<OrganizationDTO>
   });
 }
 
-export async function addOrganizationMember(orgId: string, email: string, role: string): Promise<OrganizationMemberDTO> {
+export async function addOrganizationMember(orgId: string, email: string, role: string): Promise<OrganizationMemberDTO>  {
+  if (!orgId) throw new AppError('NO_WORKSPACE', 'Workspace context is required.', 400);
   return request<OrganizationMemberDTO>(`/organizations/${orgId}/members`, {
     method: 'POST',
     body: JSON.stringify({ email, role })
   });
 }
 
-export async function updateOrganizationMemberRole(orgId: string, userId: string, role: string): Promise<OrganizationMemberDTO> {
+export async function updateOrganizationMemberRole(orgId: string, userId: string, role: string): Promise<OrganizationMemberDTO>  {
+  if (!orgId) throw new AppError('NO_WORKSPACE', 'Workspace context is required.', 400);
   return request<OrganizationMemberDTO>(`/organizations/${orgId}/members/${userId}`, {
     method: 'PUT',
     body: JSON.stringify({ role })
   });
 }
 
-export async function removeOrganizationMember(orgId: string, userId: string): Promise<void> {
+export async function removeOrganizationMember(orgId: string, userId: string): Promise<void>  {
+  if (!orgId) throw new AppError('NO_WORKSPACE', 'Workspace context is required.', 400);
   return request<void>(`/organizations/${orgId}/members/${userId}`, {
     method: 'DELETE'
   });

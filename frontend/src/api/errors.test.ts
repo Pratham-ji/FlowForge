@@ -24,8 +24,8 @@ describe('normalizeError', () => {
     });
     const err = await normalizeError(mockResponse);
     expect(err).toBeInstanceOf(AppError);
-    expect(err.code).toBe('NETWORK_ERROR');
-    expect(err.message).toBe('Internal Server Error');
+    expect(err.code).toBe('UNKNOWN');
+    expect(err.message).toBe('We encountered an internal server error. Please try again.');
     expect(err.status).toBe(500);
     expect(err.isServerError).toBe(true);
   });

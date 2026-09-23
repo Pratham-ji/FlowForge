@@ -3,8 +3,8 @@ import { useAuth } from '../auth/AuthContext';
 import * as api from '../../api/client';
 import { AppError } from '../../api/errors';
 
-export function OrganizationSettings() {
-  const { currentOrg, currentRole } = useAuth();
+export function WorkspaceSettings() {
+  const { currentWorkspace, currentRole } = useAuth();
   const [members, setMembers] = useState<api.OrganizationMemberDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +19,7 @@ export function OrganizationSettings() {
     try {
       setLoading(true);
       setError(null);
-      const data = await api.listOrganizationMembers(currentOrg!.id);
+      const data = await api.listOrganizationMembers(currentWorkspace!.id);
       setMembers(data);
     } catch (err) {
       if (err instanceof AppError) {
@@ -30,23 +30,23 @@ export function OrganizationSettings() {
     } finally {
       setLoading(false);
     }
-  }, [currentOrg]);
+  }, [currentWorkspace]);
 
   useEffect(() => {
-    if (currentOrg && currentRole === 'Admin') {
+    if (currentWorkspace && currentRole === 'Admin') {
       loadMembers();
     } else {
       setLoading(false);
     }
-  }, [currentOrg, currentRole, loadMembers]);
+  }, [currentWorkspace, currentRole, loadMembers]);
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentOrg) return;
+    if (!currentWorkspace) return;
     try {
       setAdding(true);
       setAddError(null);
-      await api.addOrganizationMember(currentOrg.id, newEmail, newRole);
+      await api.addOrganizationMember(currentWorkspace.id, newEmail, newRole);
       setNewEmail('');
       setNewRole('Viewer');
       await loadMembers();
@@ -62,10 +62,10 @@ export function OrganizationSettings() {
   };
 
   const handleRemoveMember = async (userId: string) => {
-    if (!currentOrg || !window.confirm('Are you sure you want to remove this member?')) return;
+    if (!currentWorkspace || !window.confirm('Are you sure you want to remove this member?')) return;
     try {
       setError(null);
-      await api.removeOrganizationMember(currentOrg.id, userId);
+      await api.removeOrganizationMember(currentWorkspace.id, userId);
       await loadMembers();
     } catch (err) {
       if (err instanceof AppError) {
@@ -77,10 +77,10 @@ export function OrganizationSettings() {
   };
 
   const handleChangeRole = async (userId: string, role: string) => {
-    if (!currentOrg) return;
+    if (!currentWorkspace) return;
     try {
       setError(null);
-      await api.updateOrganizationMemberRole(currentOrg.id, userId, role);
+      await api.updateOrganizationMemberRole(currentWorkspace.id, userId, role);
       await loadMembers();
     } catch (err) {
       if (err instanceof AppError) {
@@ -94,8 +94,8 @@ export function OrganizationSettings() {
   if (currentRole !== 'Admin') {
     return (
       <div className="text-center mt-12">
-        <h2 className="text-xl font-bold text-gray-900">Organization Settings</h2>
-        <p className="mt-2 text-gray-600">Only organization administrators can view or modify settings.</p>
+        <h2 className="text-xl font-bold text-gray-900">Workspace Settings</h2>
+        <p className="mt-2 text-gray-600">Only workspace administrators can view or modify settings.</p>
       </div>
     );
   }
@@ -107,7 +107,7 @@ export function OrganizationSettings() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">{currentOrg?.name} Settings</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{currentWorkspace?.name} Settings</h1>
       </div>
 
       {error && (
@@ -154,7 +154,7 @@ export function OrganizationSettings() {
               disabled={adding}
               className="inline-flex justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
             >
-              Add Member
+              {adding ? "Adding..." : "Add Member"}
             </button>
           </form>
           {addError && <p className="mt-2 text-sm text-red-600">{addError}</p>}
@@ -164,7 +164,7 @@ export function OrganizationSettings() {
           {members.map(member => (
             <li key={member.userId} className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900">{member.userId}</p>
+                <p className="text-sm font-medium text-gray-900">{member.email || "Unknown User"}</p>
                 <p className="text-sm text-gray-500">{member.role}</p>
               </div>
               <div className="flex items-center space-x-4">

@@ -1,14 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { UserDTO } from '../../types/api';
+import type { UserDTO, OrganizationDTO } from '../../types/api';
 import * as api from '../../api/client';
 import { AppError } from '../../api/errors';
 
 interface AuthState {
   user: UserDTO | null;
-  currentOrg: api.OrganizationDTO | null;
+  currentWorkspace: OrganizationDTO | null;
   currentRole: string | null;
-  organizations: api.OrganizationDTO[];
-  setCurrentOrgId: (id: string) => void;
+  workspaces: OrganizationDTO[];
+  setCurrentWorkspaceId: (id: string) => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -21,24 +21,32 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserDTO | null>(null);
-  const [organizations, setOrganizations] = useState<api.OrganizationDTO[]>([]);
-  const [currentOrg, setCurrentOrg] = useState<api.OrganizationDTO | null>(null);
+  const [workspaces, setWorkspaces] = useState<OrganizationDTO[]>([]);
+  const [currentWorkspace, setCurrentWorkspace] = useState<OrganizationDTO | null>(null);
   const [currentRole, setCurrentRole] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const logout = useCallback(() => {
+  const clearSession = useCallback(() => {
     api.clearStoredToken();
     api.clearStoredOrganization();
     setUser(null);
-    setOrganizations([]);
-    setCurrentOrg(null);
+    setWorkspaces([]);
+    setCurrentWorkspace(null);
     setCurrentRole(null);
   }, []);
 
+  const logout = useCallback(() => {
+    clearSession();
+  }, [clearSession]);
+
   const resolveRole = async (orgId: string, u: UserDTO) => {
     try {
+      if (!orgId) {
+        setCurrentRole(null);
+        return;
+      }
       const members = await api.listOrganizationMembers(orgId);
       const m = members.find(m => m.userId === u.id);
       setCurrentRole(m ? m.role : null);
@@ -47,20 +55,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const setCurrentOrgId = useCallback(async (id: string) => {
-    const org = organizations.find(o => o.id === id);
+  const setCurrentWorkspaceId = useCallback(async (id: string) => {
+    const org = workspaces.find(o => o.id === id);
     if (org) {
-      setCurrentOrg(org);
+      setCurrentWorkspace(org);
       api.setStoredOrganization(id);
       if (user) {
         await resolveRole(id, user);
       }
+    } else {
+      // Invalid workspace selection
+      setCurrentWorkspace(null);
+      api.clearStoredOrganization();
+      setCurrentRole(null);
     }
-  }, [organizations, user]);
+  }, [workspaces, user]);
+
+  const initializeWorkspaces = async (u: UserDTO) => {
+    const orgs = await api.listOrganizations();
+    setWorkspaces(orgs);
+    const storedOrgId = api.getStoredOrganization();
+
+    let targetOrg = null;
+    if (storedOrgId && orgs.find(o => o.id === storedOrgId)) {
+      targetOrg = orgs.find(o => o.id === storedOrgId)!;
+    } else if (orgs.length > 0) {
+      targetOrg = orgs[0];
+    }
+
+    if (targetOrg) {
+      setCurrentWorkspace(targetOrg);
+      api.setStoredOrganization(targetOrg.id);
+      await resolveRole(targetOrg.id, u);
+    } else {
+      setCurrentWorkspace(null);
+      api.clearStoredOrganization();
+      setCurrentRole(null);
+    }
+    return orgs;
+  };
 
   // Restore session on mount
   useEffect(() => {
-    api.setUnauthorizedHandler(logout);
+    api.setUnauthorizedHandler(() => {
+      // Triggered by API on 401
+      clearSession();
+    });
 
     const token = api.getStoredToken();
     if (!token) {
@@ -72,24 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const u = await api.getMe();
         setUser(u);
-        const orgs = await api.listOrganizations();
-        setOrganizations(orgs);
-        const storedOrgId = api.getStoredOrganization();
-
-        let targetOrg = null;
-        if (storedOrgId && orgs.find(o => o.id === storedOrgId)) {
-          targetOrg = orgs.find(o => o.id === storedOrgId)!;
-        } else if (orgs.length > 0) {
-          targetOrg = orgs[0];
-        }
-
-        if (targetOrg) {
-          setCurrentOrg(targetOrg);
-          api.setStoredOrganization(targetOrg.id);
-          await resolveRole(targetOrg.id, u);
-        }
-      } catch {
-        api.clearStoredToken();
+        await initializeWorkspaces(u);
+      } catch (err) {
+        clearSession();
       } finally {
         setIsLoading(false);
       }
@@ -99,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       api.setUnauthorizedHandler(null);
     };
-  }, [logout]);
+  }, [clearSession]);
 
   const login = useCallback(async (email: string, password: string) => {
     setError(null);
@@ -109,14 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const u = await api.getMe();
       setUser(u);
-      const orgs = await api.listOrganizations();
-      setOrganizations(orgs);
-      if (orgs.length > 0) {
-        const targetOrg = orgs[0];
-        setCurrentOrg(targetOrg);
-        api.setStoredOrganization(targetOrg.id);
-        await resolveRole(targetOrg.id, u);
-      }
+      await initializeWorkspaces(u);
     } catch (err) {
       if (err instanceof AppError && err.isUnauthorized) {
         setError('Invalid email or password.');
@@ -141,10 +159,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await api.createOrganization("My Workspace");
         orgs = await api.listOrganizations();
       }
-      setOrganizations(orgs);
+
+      setWorkspaces(orgs);
       if (orgs.length > 0) {
         const targetOrg = orgs[0];
-        setCurrentOrg(targetOrg);
+        setCurrentWorkspace(targetOrg);
         api.setStoredOrganization(targetOrg.id);
         await resolveRole(targetOrg.id, u);
       }
@@ -158,10 +177,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        currentOrg,
+        currentWorkspace,
         currentRole,
-        organizations,
-        setCurrentOrgId,
+        workspaces,
+        setCurrentWorkspaceId,
         isLoading,
         isAuthenticated: user !== null,
         login,

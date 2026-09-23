@@ -89,15 +89,15 @@ userRepository = UserRepository
   , listOrganizationMembers = \(OrganizationId oid) -> do
       conn <- ask
       res <- liftIO $ try $ query conn
-        "SELECT user_id, role FROM organization_members WHERE organization_id = ?"
+        "SELECT m.user_id, m.role, u.email FROM organization_members m JOIN users u ON m.user_id = u.id WHERE m.organization_id = ?"
         (Only oid)
       case res of
         Left (e :: SqlError) -> return $ Left $ PersistenceFailure (show e)
         Right parsed -> do
-          let parsed' = [ (uid, parseRole roleStr) | (uid, roleStr) <- parsed ]
-          if any (\(_, r) -> r == Nothing) parsed'
+          let parsed' = [ (uid, parseRole roleStr, email) | (uid, roleStr, email) <- parsed ]
+          if any (\(_, r, _) -> r == Nothing) parsed'
             then return $ Left $ PersistenceFailure "Invalid role found"
-            else return $ Right [ OrganizationMember (OrganizationId oid) (UserId uid) (let Just ro = r in ro) | (uid, r) <- parsed' ]
+            else return $ Right [ OrganizationMember (OrganizationId oid) (UserId uid) (let Just ro = r in ro) (Just email) | (uid, r, email) <- parsed' ]
 
   , createOrganization = \name (UserId uid) -> do
       conn <- ask
@@ -136,7 +136,7 @@ userRepository = UserRepository
           if "unique constraint" `T.isInfixOf` T.toLower (T.pack msg)
             then return $ Left $ BusinessRuleViolation "User is already a member"
             else return $ Left $ PersistenceFailure msg
-        Right _ -> return $ Right $ OrganizationMember (OrganizationId oid) (UserId uid) role
+        Right _ -> return $ Right $ OrganizationMember (OrganizationId oid) (UserId uid) role Nothing
 
   , updateOrganizationMemberRole = \(OrganizationId oid) (UserId uid) role -> do
       conn <- ask
@@ -146,7 +146,7 @@ userRepository = UserRepository
       case res of
         Left (e :: SqlError) -> return $ Left $ PersistenceFailure (show e)
         Right n -> if n > 0
-                     then return $ Right $ OrganizationMember (OrganizationId oid) (UserId uid) role
+                     then return $ Right $ OrganizationMember (OrganizationId oid) (UserId uid) role Nothing
                      else return $ Left $ PersistenceFailure "Member not found"
 
   , removeOrganizationMember = \(OrganizationId oid) (UserId uid) -> do

@@ -28,6 +28,11 @@ customOptions :: Options
 customOptions = defaultOptions { fieldLabelModifier = renameId }
   where
     renameId "respUserId" = "id"
+    renameId "dtoOrgId" = "id"
+    renameId "dtoOrgName" = "name"
+    renameId "dtoUserId" = "userId"
+    renameId "dtoRole" = "role"
+    renameId "dtoEmail" = "email"
     renameId "respOrgId" = "organizationId"
     renameId "respRole" = "role"
     renameId "respWfId" = "id"
@@ -69,6 +74,7 @@ instance ToSchema OrganizationDTO
 data OrganizationMemberDTO = OrganizationMemberDTO
   { dtoUserId :: UUID
   , dtoRole :: RoleDTO
+  , dtoEmail :: Maybe Text
   } deriving (Show, Generic)
 instance ToJSON OrganizationMemberDTO where toJSON = genericToJSON customOptions
 instance ToSchema OrganizationMemberDTO

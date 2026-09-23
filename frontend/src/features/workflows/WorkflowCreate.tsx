@@ -105,7 +105,7 @@ export function WorkflowCreate() {
                 Cancel
               </Button>
               <Button type="submit" isLoading={isSubmitting} disabled={!name.trim()}>
-                Create Workflow
+                {isSubmitting ? "Creating..." : "Create Workflow"}
               </Button>
             </div>
           </form>
