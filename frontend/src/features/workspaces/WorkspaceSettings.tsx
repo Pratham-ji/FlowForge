@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import * as api from '../../api/client';
+import type { OrganizationMemberDTO } from '../../types/api';
 import { AppError } from '../../api/errors';
 
 export function WorkspaceSettings() {
   const { currentWorkspace, currentRole } = useAuth();
-  const [members, setMembers] = useState<api.OrganizationMemberDTO[]>([]);
+  const [members, setMembers] = useState<OrganizationMemberDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

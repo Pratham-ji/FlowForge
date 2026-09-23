@@ -80,3 +80,14 @@ export interface ApiErrorBody {
     message: string;
   };
 }
+
+export interface OrganizationDTO {
+  id: string;
+  name: string;
+}
+
+export interface OrganizationMemberDTO {
+  userId: string;
+  role: string;
+  email?: string;
+}

@@ -8,6 +8,8 @@ import type {
   AuditEventDTO,
   CreateWorkflowRequest,
   ExecuteTransitionRequest,
+  OrganizationDTO,
+  OrganizationMemberDTO,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
@@ -182,15 +184,6 @@ export async function getAuditEvents(instanceId: string): Promise<AuditEventDTO[
 }
 
 // --- Organizations ---
-export interface OrganizationDTO {
-  id: string;
-  name: string;
-}
-export interface OrganizationMemberDTO {
-  userId: string;
-  role: string;
-  email?: string;
-}
 export async function listOrganizationMembers(orgId: string): Promise<OrganizationMemberDTO[]>  {
   if (!orgId) throw new AppError('NO_WORKSPACE', 'Workspace context is required.', 400);
   return request<OrganizationMemberDTO[]>(`/organizations/${orgId}/members`);
